@@ -9,3 +9,6 @@ statements/
 *service_account*.json
 .venv/
 __pycache__/
+
+# Local notes for Claude sessions
+HANDOFF.md
