@@ -11,10 +11,19 @@ import gspread
 
 from .categorize import (ALL_CATEGORIES, DEFAULT_RULES_PATH, INCOME_CATEGORIES, SPENDING_CATEGORIES,
                          is_income, is_spending, load_rules)
+from .core import monthly_summary
 from .local_store import HEADERS, row_to_txn
 from .parsers import Txn
 
 TX, SUMMARY, RULES, CHARTS = "Transactions", "Summary", "Rules", "Charts"
+
+# Categorical palette (fixed order, colorblind-checked for adjacent stacked segments).
+PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7"]
+OTHER_GRAY = "#9a9a94"
+
+
+def _rgb(hex_color: str) -> dict:
+    return {k: int(hex_color[i:i + 2], 16) / 255 for k, i in (("red", 1), ("green", 3), ("blue", 5))}
 
 
 def _text(s: str) -> str:
@@ -175,38 +184,118 @@ class SheetStore:
                               "fields": "userEnteredFormat.textFormat.bold"}} for r in (0, 1, start - 1)],
             {"autoResizeDimensions": {"dimensions": {"sheetId": sid, "dimension": "COLUMNS", "startIndex": 0, "endIndex": len(header)}}},
         ]})
-        self._write_charts(f"{_col(first_cat)}", f"{_col(cat_cols[-1])}")
+        self._write_charts(months, {c: _col(i) for c, i in zip(cats, cat_cols)}, txns)
 
-    def _write_charts(self, c0: str, c1: str) -> None:
-        """Charts tab: top 7 spending categories + "Everything else", all time and latest month.
-        The tables are formulas over Summary, so the pies update whenever Summary does."""
-        ws = self._tab(CHARTS, rows=60, cols=6)
+    def _write_charts(self, months: list[str], cat_col: dict[str, str], txns: list[Txn]) -> None:
+        """Charts tab: pick a month and a start month from dropdowns; the charts
+        (stacked monthly spending, income vs spending, selected-month pie) follow.
+        Chart data are formulas over Summary; the tab is rebuilt on every run but
+        keeps the dropdown choices."""
+        ws = self._tab(CHARTS, rows=100, cols=18)
+        if not months:
+            return
+        old = ws.get("B1:E1")
+        picked = old[0][0] if old and old[0] and old[0][0] in months else months[0]
+        start = old[0][3] if old and len(old[0]) > 3 and old[0][3] in months else months[min(3, len(months) - 1)]
 
-        def top(row: int) -> str:
-            pairs = f"TRANSPOSE({{{SUMMARY}!{c0}1:{c1}1;{SUMMARY}!{c0}{row}:{c1}{row}}})"
-            return (f"=LET(t,SORT(FILTER({pairs},INDEX({pairs},,2)>0),2,FALSE),"
-                    f"IF(ROWS(t)>7,VSTACK(ARRAY_CONSTRAIN(t,7,2),"
-                    f"{{\"Everything else\",SUM(INDEX(t,,2))-SUM(ARRAY_CONSTRAIN(INDEX(t,,2),7,1))}}),t))")
+        # Top 7 categories by spending since the start month, kept in the fixed
+        # category order so each one keeps its color from run to run.
+        totals = monthly_summary([t for t in txns if t.month >= start])
+        spend = {c: sum(m.get(c, 0) for m in totals.values()) for c in cat_col}
+        top = [c for c in sorted(spend, key=spend.get, reverse=True) if spend[c] > 0][:7]
+        top = [c for c in cat_col if c in top]
+
+        T = 61  # 1-based row where the chart-data tables start (below the charts)
+        N = 24  # max months shown in the monthly charts
+        row = f"MATCH($A{{r}},{SUMMARY}!$A$3:$A,0)"
+        pick = f"MATCH($B$1,{SUMMARY}!$A$3:$A,0)"
+
+        def at(col: str, match: str) -> str:
+            return f"INDEX({SUMMARY}!${col}$3:${col},{match})"
+
+        values = [["Month", "", "", "From", ""],
+                  ["Income", f"=IFERROR({at('B', pick)},0)", "Spent", f"=IFERROR({at('C', pick)},0)",
+                   "Net", f"=IFERROR({at('D', pick)},0)"]]
+        values += [[] for _ in range(T - 3)]
+        values.append(["Month"] + top + ["Everything else", "", "Month", "Income", "Spent", "",
+                       "Category", "Amount"])
+        c0, c1 = cat_col[next(iter(cat_col))], list(cat_col.values())[-1]
+        pairs = (f"TRANSPOSE({{{SUMMARY}!{c0}1:{c1}1;"
+                 f"INDEX({SUMMARY}!{c0}3:{c1},{pick},0)}})")
+        pie = (f"=IFERROR(LET(t,SORT(FILTER({pairs},INDEX({pairs},,2)>0),2,FALSE),"
+               f"IF(ROWS(t)>7,VSTACK(ARRAY_CONSTRAIN(t,7,2),"
+               f"{{\"Everything else\",SUM(INDEX(t,,2))-SUM(ARRAY_CONSTRAIN(INDEX(t,,2),7,1))}}),t)),\"\")")
+        for i in range(N):
+            r = T + 1 + i
+            m = row.format(r=r)
+            line = [f'=SORT(FILTER({SUMMARY}!A3:A,{SUMMARY}!A3:A>=$E$1,{SUMMARY}!B3:B<>""),1,TRUE)' if i == 0 else ""]
+            line += [f'=IF($A{r}="","",IFERROR({at(cat_col[c], m)},0))' for c in top]
+            line += [f'=IF($A{r}="","",IFERROR({at("C", m)},0)-SUM(B{r}:{_col(1 + len(top))}{r}))', "",
+                     f'=IF($A{r}="","",$A{r})',
+                     f'=IF($A{r}="","",IFERROR({at("B", m)},0))',
+                     f'=IF($A{r}="","",IFERROR({at("C", m)},0))', "",
+                     pie if i == 0 else ""]
+            values.append(line)
+        values[0][1], values[0][4] = _text(picked), _text(start)
 
         ws.clear()
-        ws.update(values=[["All time", "", "", "=\"Latest month (\"&Summary!A3&\")\"", ""], [top(2), "", "", top(3), ""]],
-                  range_name="A1", value_input_option="USER_ENTERED")
-        sid = ws.id
-        requests = [_range_fmt(sid, 1, 10, c, c + 1, "CURRENCY", "$#,##0") for c in (1, 4)]
-        meta = self.ss.fetch_sheet_metadata({"fields": "sheets(properties.sheetId,charts.chartId)"})
-        if not any(sh.get("charts") for sh in meta["sheets"] if sh["properties"]["sheetId"] == sid):
-            for i, (title, col) in enumerate([("All-time spending", 0), ("Latest month", 3)]):
-                requests.append({"addChart": {"chart": {
-                    "spec": {"title": title, "pieChart": {
-                        "legendPosition": "RIGHT_LEGEND",
-                        "domain": {"sourceRange": {"sources": [{"sheetId": sid, "startRowIndex": 1, "endRowIndex": 10,
-                                                                "startColumnIndex": col, "endColumnIndex": col + 1}]}},
-                        "series": {"sourceRange": {"sources": [{"sheetId": sid, "startRowIndex": 1, "endRowIndex": 10,
-                                                                "startColumnIndex": col + 1, "endColumnIndex": col + 2}]}}}},
-                    "position": {"overlayPosition": {"anchorCell": {"sheetId": sid, "rowIndex": 11 + 19 * i, "columnIndex": 0},
-                                                     "widthPixels": 520, "heightPixels": 340}}}}})
-        self.ss.batch_update({"requests": requests})
+        ws.update(values=values, range_name="A1", value_input_option="USER_ENTERED")
 
+        sid = ws.id
+        ncol = len(top) + 2               # Month + top + Everything else
+        inc = ncol + 1                    # Month / Income / Spent block
+        pie_c = inc + 4                   # Category / Amount block
+        meta = self.ss.fetch_sheet_metadata({"fields": "sheets(properties.sheetId,charts.chartId)"})
+        old_charts = [c["chartId"] for sh in meta["sheets"] if sh["properties"]["sheetId"] == sid
+                      for c in sh.get("charts", [])]
+
+        def rng(c: int, rows: int = N + 1) -> dict:
+            return {"sourceRange": {"sources": [{"sheetId": sid, "startRowIndex": T - 1, "endRowIndex": T - 1 + rows,
+                                                 "startColumnIndex": c, "endColumnIndex": c + 1}]}}
+
+        def anchor(r: int, h: int) -> dict:
+            return {"overlayPosition": {"anchorCell": {"sheetId": sid, "rowIndex": r, "columnIndex": 0},
+                                        "widthPixels": 820, "heightPixels": h}}
+
+        def columns(title: str, cols: list[int], colors: list[str], stacked: bool) -> dict:
+            spec = {"chartType": "COLUMN", "legendPosition": "RIGHT_LEGEND", "headerCount": 1,
+                    "domains": [{"domain": rng(cols[0] - 1 if not stacked else 0)}],
+                    "series": [{"series": rng(c), "targetAxis": "LEFT_AXIS", "colorStyle": {"rgbColor": _rgb(col)}}
+                               for c, col in zip(cols, colors)]}
+            if stacked:
+                spec["stackedType"] = "STACKED"
+            return {"title": title, "basicChart": spec}
+
+        requests = [{"deleteEmbeddedObject": {"objectId": cid}} for cid in old_charts]
+        requests += [
+            {"setDataValidation": {"range": {"sheetId": sid, "startRowIndex": 0, "endRowIndex": 1,
+                                             "startColumnIndex": c, "endColumnIndex": c + 1},
+                                   "rule": {"condition": {"type": "ONE_OF_LIST",
+                                                          "values": [{"userEnteredValue": m} for m in months]},
+                                            "showCustomUi": True, "strict": True}}} for c in (1, 4)]
+        requests += [
+            {"repeatCell": {"range": {"sheetId": sid, "startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": c,
+                                      "endColumnIndex": c + 1},
+                            "cell": {"userEnteredFormat": {"textFormat": {"bold": True}}},
+                            "fields": "userEnteredFormat.textFormat.bold"}} for c in (0, 2, 3, 4)]
+        requests += [
+            _range_fmt(sid, 1, 2, 0, 6, "CURRENCY", "$#,##0"),
+            _range_fmt(sid, T, T + N, 1, pie_c + 2, "CURRENCY", "$#,##0"),
+            {"addChart": {"chart": {"spec": columns("Spending by month", list(range(1, ncol)),
+                                                    PALETTE[:len(top)] + [OTHER_GRAY], stacked=True),
+                                    "position": anchor(2, 380)}}},
+            {"addChart": {"chart": {"spec": {"title": "Breakdown for the month picked in B1", "pieChart": {
+                "legendPosition": "RIGHT_LEGEND",
+                "domain": {"sourceRange": {"sources": [{"sheetId": sid, "startRowIndex": T, "endRowIndex": T + 8,
+                                                        "startColumnIndex": pie_c, "endColumnIndex": pie_c + 1}]}},
+                "series": {"sourceRange": {"sources": [{"sheetId": sid, "startRowIndex": T, "endRowIndex": T + 8,
+                                                        "startColumnIndex": pie_c + 1, "endColumnIndex": pie_c + 2}]}}}},
+                                    "position": anchor(22, 340)}}},
+            {"addChart": {"chart": {"spec": columns("Income vs spending", [inc + 1, inc + 2],
+                                                    [PALETTE[0], PALETTE[1]], stacked=False),
+                                    "position": anchor(40, 320)}}},
+        ]
+        self.ss.batch_update({"requests": requests})
 
 def _fmt(sid, col, kind, pattern):
     return _range_fmt(sid, 1, None, col, col + 1, kind, pattern)

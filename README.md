@@ -6,7 +6,7 @@ Download your transaction CSVs from Chase, run one command, and your Google Shee
 
 - **Transactions**: every transaction from every account, newest first, with a category dropdown, an Exclude column and a Notes column
 - **Summary**: income (work / other, plus any sources you add), spending, net and % of income spent per month, plus a column per category, all as live formulas
-- **Charts**: pie charts of where your money went, all time and for the latest month
+- **Charts**: pick a month and a start month from dropdowns to get stacked monthly spending by category, income vs spending, and a pie of the chosen month, with hover for exact amounts
 - **Rules**: your own "merchant → category" rules, editable from any computer
 
 It handles the parts that make bank data annoying:
@@ -114,7 +114,7 @@ spending_tracker/
   categorize.py             categories and the rules → type → Chase-category cascade
   pairing.py                cancelled-order detection
   core.py                   merge/dedupe, recategorize, split, monthly totals
-  sheets.py                 Google Sheets tabs, Summary formulas, pie charts
+  sheets.py                 Google Sheets tabs, Summary formulas, Charts tab
   local_store.py            CSV storage for --local mode
 rules.default.csv           built-in merchant rules
 examples/                   fake Chase CSVs to try it out
