@@ -1,0 +1,11 @@
+# Personal financial data and credentials — never commit
+config.json
+rules.local.csv
+data/
+statements/
+*.csv
+!rules.default.csv
+!examples/*.csv
+*service_account*.json
+.venv/
+__pycache__/

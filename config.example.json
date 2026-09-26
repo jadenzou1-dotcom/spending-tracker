@@ -1,0 +1,8 @@
+{
+  "sheet_id": "the long ID in your sheet's URL: docs.google.com/spreadsheets/d/<THIS>/edit",
+  "credentials": "~/.config/spending-tracker/service_account.json",
+  "accounts": {
+    "1234": "Checking",
+    "5678": "Credit Card"
+  }
+}

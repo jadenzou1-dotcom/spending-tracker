@@ -1,0 +1,164 @@
+pattern,category
+# Case-insensitive substring match on the description; first match wins, so put
+# specific patterns above general ones. Personal rules (your landlord, your office
+# cafeteria, ...) go in rules.local.csv or the Rules tab of your sheet.
+#
+# --- Transfers & income (never count as spending) ---
+Payment Thank You,Transfer
+Payment to Chase card,Transfer
+CHASE CREDIT CRD EPAY,Transfer
+Online Transfer,Transfer
+ACCTVERIFY,Transfer
+PAYROLL,Work Income
+Zelle payment from,Other Income
+#
+# --- Subscriptions (above Food Delivery so DashPass lands here) ---
+DASHPASS,Subscriptions
+YOUTUBEPREMI,Subscriptions
+YouTube Premium,Subscriptions
+NETFLIX,Subscriptions
+HULU,Subscriptions
+HLU*,Subscriptions
+DISNEY PLUS,Subscriptions
+DISNEYPLUS,Subscriptions
+CRUNCHYROLL,Subscriptions
+AMAZON PRIME,Subscriptions
+PRIME VIDEO,Subscriptions
+KINDLE,Subscriptions
+SPOTIFY,Subscriptions
+APPLE.COM/BILL,Subscriptions
+CLAUDE.AI,Subscriptions
+ANTHROPIC,Subscriptions
+OPENAI,Subscriptions
+CHATGPT,Subscriptions
+STRAVA,Subscriptions
+LINKEDIN,Subscriptions
+#
+# --- Food delivery ---
+DOORDASH,Food Delivery
+UBER EATS,Food Delivery
+UBER *EATS,Food Delivery
+GRUBHUB,Food Delivery
+INSTACART,Groceries
+#
+# --- Transport ---
+UBER *TRIP,Transport
+UBER TECHNOLOGIES,Transport
+LYFT,Transport
+MBTA,Transport
+MTA*,Transport
+CURB,Transport
+TAXI,Transport
+FLIX,Travel
+OURBUS,Travel
+MEGABUS,Travel
+AMTRAK,Travel
+EXXON,Transport
+SHELL OIL,Transport
+SUNOCO,Transport
+SPEEDWAY,Transport
+#
+# --- Travel ---
+RESIDENCE INN,Travel
+MARRIOTT,Travel
+HILTON,Travel
+AIRBNB,Travel
+EXPEDIA,Travel
+AIRLINES,Travel
+#
+# --- Utilities & phone ---
+AT&T,Utilities & Phone
+VERIZON,Utilities & Phone
+T-MOBILE,Utilities & Phone
+COMCAST,Utilities & Phone
+XFINITY,Utilities & Phone
+WIFI,Utilities & Phone
+#
+# --- Groceries ---
+TRADER JOE,Groceries
+WHOLE FOODS,Groceries
+WEGMANS,Groceries
+ROCHE BROTHERS,Groceries
+STAR MARKET,Groceries
+STOP & SHOP,Groceries
+PUBLIX,Groceries
+ALDI,Groceries
+H MART,Groceries
+ASIAN MART,Groceries
+GROCERY,Groceries
+GREENSTAR,Groceries
+HUEL,Groceries
+#
+# --- Shopping ---
+AMAZON MKTPL,Shopping
+AMAZON.COM,Shopping
+AMZN,Shopping
+TARGET,Shopping
+WAL-MART,Shopping
+WALMART,Shopping
+WM SUPERCENTER,Shopping
+COSTCO,Shopping
+NORDSTROM,Shopping
+APPLE.COM/US,Shopping
+UPS STORE,Shopping
+USPS,Shopping
+#
+# --- Gaming ---
+STEAM,Gaming
+RIOT*,Gaming
+G2G,Gaming
+#
+# --- Entertainment ---
+AMC ,Entertainment
+#
+# --- Health & fitness ---
+WHOOP,Health & Fitness
+CVS,Health & Fitness
+WALGREENS,Health & Fitness
+EYE CARE,Health & Fitness
+#
+# --- Personal care ---
+SALON,Personal Care
+BARBER,Personal Care
+#
+# --- Payments to people ---
+VENMO,Payments to People
+Zelle payment to,Payments to People
+#
+# --- Fees & government ---
+ATM FEE,Fees
+FOREIGN EXCHANGE,Fees
+RMV,Fees
+DMV,Fees
+#
+# --- Snacks ---
+VENDING,Snacks
+7-ELEVEN,Snacks
+365 VEND,Snacks
+#
+# --- Dining (general words last so specific rules win) ---
+CAFE,Dining
+COFFEE,Dining
+BAGEL,Dining
+PIZZA,Dining
+RAMEN,Dining
+SUSHI,Dining
+KITCHEN,Dining
+RESTAURANT,Dining
+DINING,Dining
+CHIPOTLE,Dining
+PANERA,Dining
+MCDONALD,Dining
+BURGER KING,Dining
+CHICK-FIL-A,Dining
+CHICK FIL A,Dining
+FIVE GUYS,Dining
+PANDA EXPRESS,Dining
+DUNKIN,Dining
+STARBUCKS,Dining
+TIM HORTONS,Dining
+SHAKE SHACK,Dining
+DOMINO,Dining
+JERSEY MIKE,Dining
+CINNABON,Dining
+WAWA,Dining
