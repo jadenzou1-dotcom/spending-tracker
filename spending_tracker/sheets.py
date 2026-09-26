@@ -118,7 +118,16 @@ class SheetStore:
         if missing:
             # Refuse rather than treat the sheet as empty, which would overwrite it.
             raise SystemExit(f"Transactions tab is missing columns {missing}; fix the header row before running.")
-        return [row_to_txn(dict(zip(header, r))) for r in values[1:] if any(r)]
+        out = []
+        for n, r in enumerate(values[1:], start=2):
+            if not any(r):
+                continue
+            try:
+                out.append(row_to_txn(dict(zip(header, r))))
+            except ValueError:
+                # e.g. text pasted into Amount; stop rather than guess.
+                raise SystemExit(f"Transactions row {n} has an invalid Date or Amount: {r[:3]}. Fix it in the Sheet and rerun.")
+        return out
 
     def write(self, txns: list[Txn]) -> None:
         rows = [HEADERS] + [
