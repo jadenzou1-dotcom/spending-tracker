@@ -192,27 +192,25 @@ class SheetStore:
         self._write_charts(months, _col(first_cat), _col(cat_cols[-1]), _col(len(header)), n_last)
 
     def _write_charts(self, months: list[str], c0: str, c1: str, last: str, n_last: int) -> None:
-        """Charts tab, driven by three month dropdowns:
-          row 1  bar charts from [B1] to [D1]
-          row 2  pie + totals for [B2]
-        The top 7 categories (+ "Everything else") are picked by formulas from your
-        spending in the chosen range, so changing a dropdown re-ranks them. The tab
-        is rebuilt on every run but keeps the dropdown choices."""
+        """Charts tab, driven by month dropdowns in row 1:
+          A-I   bar charts from [B1] to [D1]: stacked spending (top 7 categories in
+                that range + "Everything else") and income vs spending
+          J->   two pies side by side, for the months in [K1] and [P1]
+        Chart data are formulas over Summary, so changing a dropdown re-ranks and
+        redraws. The tab is rebuilt on every run but keeps the dropdown choices."""
         ws = self._tab(CHARTS, rows=100, cols=20)
         if not months:
             return
-        old = ws.get("A1:D2")
+        old = (ws.get("A1:P1") or [[]])[0]
 
-        def kept(r: int, c: int, default: str) -> str:
-            try:
-                v = old[r][c]
-            except IndexError:
-                return default
+        def kept(c: int, default: str) -> str:
+            v = old[c] if c < len(old) else ""
             return v if v in months else default
 
-        frm = kept(0, 1, months[min(3, len(months) - 1)])
-        to = kept(0, 3, months[0])
-        pick = kept(1, 1, months[0])
+        prev = months[min(1, len(months) - 1)]
+        frm = kept(1, months[min(3, len(months) - 1)])
+        to = kept(3, months[0])
+        pie1, pie2 = kept(10, prev), kept(15, months[0])
 
         H, T = 58, 61  # helper row and first chart-data row (1-based, below the charts)
         S = SUMMARY
@@ -220,7 +218,7 @@ class SheetStore:
         grid = f"{S}!$A$1:${last}${n_last}"
         # Dropdown values may come back as dates; normalize to "yyyy-mm" text.
         norm = lambda ref: f'=IF(ISNUMBER({ref}),TEXT({ref},"yyyy-mm"),{ref})'
-        FROM, TO, PICK = f"$A${H}", f"$B${H}", f"$C${H}"
+        FROM, TO, PIE1, PIE2 = (f"${c}${H}" for c in "ABCD")
 
         def val(month_ref: str, col_expr: str) -> str:
             return f"INDEX({grid},MATCH({month_ref},{S}!$A$1:$A${n_last},0),{col_expr})"
@@ -235,24 +233,23 @@ class SheetStore:
         top7 = (f"=IFERROR(LET(t,FILTER(TRANSPOSE({{{names};{range_totals};SEQUENCE(1,COLUMNS({names}))}}),"
                 f"TRANSPOSE({range_totals})>0),"
                 f"TRANSPOSE(INDEX(SORT(ARRAY_CONSTRAIN(SORT(t,2,FALSE),7,3),3,TRUE),,1))),\"\")")
-        month_row = f"INDEX({S}!{c0}3:{c1}{n_last},MATCH({PICK},{mon},0),0)"
-        pairs = f"TRANSPOSE({{{names};{month_row}}})"
-        pie = (f"=IFERROR(LET(t,SORT(FILTER({pairs},INDEX({pairs},,2)>0),2,FALSE),"
-               f"IF(ROWS(t)>7,VSTACK(ARRAY_CONSTRAIN(t,7,2),"
-               f"{{\"Everything else\",SUM(INDEX(t,,2))-SUM(ARRAY_CONSTRAIN(INDEX(t,,2),7,1))}}),t)),\"\")")
+
+        def pie(month: str) -> str:
+            row = f"INDEX({S}!{c0}3:{c1}{n_last},MATCH({month},{mon},0),0)"
+            pairs = f"TRANSPOSE({{{names};{row}}})"
+            return (f"=IFERROR(LET(t,SORT(FILTER({pairs},INDEX({pairs},,2)>0),2,FALSE),"
+                    f"IF(ROWS(t)>7,VSTACK(ARRAY_CONSTRAIN(t,7,2),"
+                    f"{{\"Everything else\",SUM(INDEX(t,,2))-SUM(ARRAY_CONSTRAIN(INDEX(t,,2),7,1))}}),t)),\"\")")
 
         N = 24  # max months in the bar charts
-        values = [
-            ["Bar charts from", _text(frm), "to", _text(to)],
-            ["Pie + totals for", _text(pick), "Income", f"=IFERROR({val(PICK, 2)},0)",
-             "Spent", f"=IFERROR({val(PICK, 3)},0)", "Net", f"=IFERROR({val(PICK, 4)},0)"],
-        ]
-        values += [[] for _ in range(H - 4)]
+        values = [["Bar charts from", _text(frm), "to", _text(to), "", "", "", "", "",
+                   "Pie 1", _text(pie1), "", "", "", "Pie 2", _text(pie2)]]
+        values += [[] for _ in range(H - 3)]
         values += [["Chart data below (formulas; don't edit)"],
-                   [norm("$B$1"), norm("$D$1"), norm("$B$2")]]
+                   [norm("$B$1"), norm("$D$1"), norm("$K$1"), norm("$P$1")]]
         values += [[] for _ in range(T - H - 1)]
         values.append(["Month", top7, "", "", "", "", "", "", "Everything else", "",
-                       "Month", "Income", "Spent", "", "Category", "Amount"])
+                       "Month", "Income", "Spent", "", "Pie 1", "", "", "Pie 2"])
         for i in range(N):
             r = T + 1 + i
             line = [f'=IFERROR(SORT(FILTER({mon},{mon}>={FROM},{mon}<={TO}),1,TRUE),"")' if i == 0 else ""]
@@ -262,24 +259,29 @@ class SheetStore:
                      f'=IF($A{r}="","",$A{r})',
                      f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 2)},0))',
                      f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 3)},0))', "",
-                     pie if i == 0 else ""]
+                     pie(PIE1) if i == 0 else "", "", "",
+                     pie(PIE2) if i == 0 else ""]
             values.append(line)
-
-        ws.clear()
-        ws.update(values=values, range_name="A1", value_input_option="USER_ENTERED")
 
         sid = ws.id
         meta = self.ss.fetch_sheet_metadata({"fields": "sheets(properties.sheetId,charts.chartId)"})
         old_charts = [c["chartId"] for sh in meta["sheets"] if sh["properties"]["sheetId"] == sid
                       for c in sh.get("charts", [])]
+        # Start from a blank tab: old charts, dropdowns and formats from earlier layouts go too.
+        self.ss.batch_update({"requests": [{"deleteEmbeddedObject": {"objectId": cid}} for cid in old_charts] + [
+            {"setDataValidation": {"range": {"sheetId": sid}}},
+            {"repeatCell": {"range": {"sheetId": sid}, "cell": {}, "fields": "userEnteredFormat"}},
+        ]})
+        ws.clear()
+        ws.update(values=values, range_name="A1", value_input_option="USER_ENTERED")
 
         def src(c: int, r0: int = T - 1, rows: int = N + 1) -> dict:
             return {"sourceRange": {"sources": [{"sheetId": sid, "startRowIndex": r0, "endRowIndex": r0 + rows,
                                                  "startColumnIndex": c, "endColumnIndex": c + 1}]}}
 
-        def anchor(r: int, h: int) -> dict:
-            return {"overlayPosition": {"anchorCell": {"sheetId": sid, "rowIndex": r, "columnIndex": 0},
-                                        "widthPixels": 860, "heightPixels": h}}
+        def anchor(r: int, c: int, w: int, h: int) -> dict:
+            return {"overlayPosition": {"anchorCell": {"sheetId": sid, "rowIndex": r, "columnIndex": c},
+                                        "widthPixels": w, "heightPixels": h}}
 
         def columns(title: str, domain: int, cols: list[int], colors: list[str], stacked: bool) -> dict:
             spec = {"chartType": "COLUMN", "legendPosition": "RIGHT_LEGEND", "headerCount": 1,
@@ -290,38 +292,35 @@ class SheetStore:
                 spec["stackedType"] = "STACKED"
             return {"title": title, "basicChart": spec}
 
+        def pie_chart(title: str, col: int) -> dict:
+            return {"title": title, "pieChart": {"legendPosition": "RIGHT_LEGEND",
+                                                 "domain": src(col, T, 8), "series": src(col + 1, T, 8)}}
+
         def cells(r0, r1, c0_, c1_, fmt):
             return {"repeatCell": {"range": {"sheetId": sid, "startRowIndex": r0, "endRowIndex": r1,
                                              "startColumnIndex": c0_, "endColumnIndex": c1_},
                                    "cell": {"userEnteredFormat": fmt}, "fields": "userEnteredFormat(" + ",".join(fmt) + ")"}}
 
-        dropdowns = [(0, 1), (0, 3), (1, 1)]
-        requests = [{"deleteEmbeddedObject": {"objectId": cid}} for cid in old_charts]
-        requests += [
-            {"setDataValidation": {"range": {"sheetId": sid, "startRowIndex": r, "endRowIndex": r + 1,
+        dropdowns = [1, 3, 10, 15]  # B1, D1, K1, P1
+        requests = [
+            {"setDataValidation": {"range": {"sheetId": sid, "startRowIndex": 0, "endRowIndex": 1,
                                              "startColumnIndex": c, "endColumnIndex": c + 1},
                                    "rule": {"condition": {"type": "ONE_OF_LIST",
                                                           "values": [{"userEnteredValue": m} for m in months]},
-                                            "showCustomUi": True, "strict": True}}} for r, c in dropdowns]
+                                            "showCustomUi": True, "strict": True}}} for c in dropdowns]
         # Plain-text format keeps a picked "2026-09" from turning into a date.
-        requests += [cells(r, r + 1, c, c + 1, {"numberFormat": {"type": "TEXT"}}) for r, c in dropdowns]
+        requests += [cells(0, 1, c, c + 1, {"numberFormat": {"type": "TEXT"}}) for c in dropdowns]
+        requests += [cells(0, 1, c, c + 1, {"textFormat": {"bold": True}}) for c in (0, 2, 9, 14)]
         requests += [
-            cells(0, 2, 0, 1, {"textFormat": {"bold": True}}),
-            cells(1, 2, 2, 8, {"textFormat": {"bold": True}}),
-            _range_fmt(sid, 1, 2, 3, 4, "CURRENCY", "$#,##0"),
-            _range_fmt(sid, 1, 2, 5, 6, "CURRENCY", "$#,##0"),
-            _range_fmt(sid, 1, 2, 7, 8, "CURRENCY", "$#,##0"),
-            _range_fmt(sid, T, T + N, 1, 16, "CURRENCY", "$#,##0"),
+            _range_fmt(sid, T, T + N, 1, 19, "CURRENCY", "$#,##0"),
             {"addChart": {"chart": {"spec": columns("Spending by month (top 7 categories in range)", 0,
                                                     list(range(1, 9)), PALETTE + [OTHER_GRAY], stacked=True),
-                                    "position": anchor(2, 380)}}},
+                                    "position": anchor(2, 0, 880, 400)}}},
             {"addChart": {"chart": {"spec": columns("Income vs spending", 10, [11, 12],
                                                     [PALETTE[0], PALETTE[1]], stacked=False),
-                                    "position": anchor(22, 300)}}},
-            {"addChart": {"chart": {"spec": {"title": "Breakdown for the month in B2", "pieChart": {
-                "legendPosition": "RIGHT_LEGEND",
-                "domain": src(14, T, 8), "series": src(15, T, 8)}},
-                                    "position": anchor(38, 340)}}},
+                                    "position": anchor(23, 0, 880, 300)}}},
+            {"addChart": {"chart": {"spec": pie_chart("Pie 1: month in K1", 14), "position": anchor(2, 9, 480, 400)}}},
+            {"addChart": {"chart": {"spec": pie_chart("Pie 2: month in P1", 17), "position": anchor(2, 14, 480, 400)}}},
         ]
         self.ss.batch_update({"requests": requests})
 

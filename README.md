@@ -6,7 +6,7 @@ Download your transaction CSVs from Chase, run one command, and your Google Shee
 
 - **Transactions**: every transaction from every account, newest first, with a category dropdown, an Exclude column and a Notes column
 - **Summary**: income, spending, net and % of income spent per month, plus a column per income source and spending category, **ordered by your own totals** (biggest first), all as live formulas
-- **Charts**: pick any month range (e.g. the last 3 months, or March to June) to see stacked monthly spending for your top 7 categories in that range, income vs spending, and a pie for any single month, with hover for exact amounts
+- **Charts**: pick any month range (e.g. the last 3 months, or March to June) to see stacked monthly spending for your top 7 categories in that range, income vs spending, and two pies side by side to compare any two months, with hover for exact amounts
 - **Rules**: your own "merchant → category" rules, editable from any computer
 
 It handles the parts that make bank data annoying:
