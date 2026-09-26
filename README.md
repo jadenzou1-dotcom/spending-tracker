@@ -5,8 +5,8 @@ Turn Chase bank and credit card exports into a categorized, month-by-month spend
 Download your transaction CSVs from Chase, run one command, and your Google Sheet gets:
 
 - **Transactions**: every transaction from every account, newest first, with a category dropdown, an Exclude column and a Notes column
-- **Summary**: income (work / other, plus any sources you add), spending, net and % of income spent per month, plus a column per category, all as live formulas
-- **Charts**: pick a month and a start month from dropdowns to get stacked monthly spending by category, income vs spending, and a pie of the chosen month, with hover for exact amounts
+- **Summary**: income, spending, net and % of income spent per month, plus a column per income source and spending category, **ordered by your own totals** (biggest first), all as live formulas
+- **Charts**: pick any month range (e.g. the last 3 months, or March to June) to see stacked monthly spending for your top 7 categories in that range, income vs spending, and a pie for any single month, with hover for exact amounts
 - **Rules**: your own "merchant → category" rules, editable from any computer
 
 It handles the parts that make bank data annoying:
@@ -78,11 +78,21 @@ You can also edit Category, Exclude and Notes directly in the Sheet. Your edits 
 
 Add `--local` before any command to use `data/transactions.csv` instead of the Sheet. IDs can be shortened to their first 8 characters.
 
+## Setting up your categories
+
+The Summary and Charts are built from **whatever categories you use**. There's no fixed list of columns: each category gets a column, biggest spending first, and the charts pick your top 7 for the months you choose. So the first job after your first import is sorting your transactions:
+
+1. `import` your CSVs. [`rules.default.csv`](rules.default.csv) sorts common merchants (DoorDash, Uber, Netflix, Trader Joe's, …), and card transactions fall back to Chase's own category.
+2. Everything else is `Uncategorized`. Go through it with `uncategorized`, and for each merchant you'll see again, `add-rule` it; for one-offs, `set` it or pick from the dropdown in the Sheet. Use the categories below or make up your own.
+3. Re-run `recategorize` after adding rules. The Summary and Charts rebuild around your categories.
+
+This is the part [Claude Code](https://claude.com/claude-code) is good at: open it in this folder and say "go through my uncategorized transactions". It proposes rules, asks about merchants it can't identify, and records what you tell it in the Notes column (see [Using it with Claude Code](#using-it-with-claude-code)).
+
 ## Categories
 
 **Income:** Work Income, Other Income. Any category ending in `Income` (e.g. `Scholarship Income`) counts as income and gets its own Summary column. For example, a rule like `add-rule "Online Transfer from CHK ...1111" "Allowance Income"` turns regular transfers from someone else's account into their own income line.
 
-**Spending:** Rent, Utilities & Phone, Groceries, Food Delivery, Dining, Snacks, Transport, Travel, Subscriptions, Shopping, Entertainment, Gaming, Health & Fitness, Personal Care, Payments to People, Cash, Fees, Other, Uncategorized. Invent your own by typing a new name in the Category column or in a rule, and it shows up on the Summary automatically.
+**Spending (starter set):** Rent, Utilities & Phone, Groceries, Food Delivery, Dining, Snacks, Transport, Travel, Subscriptions, Shopping, Entertainment, Gaming, Health & Fitness, Personal Care, Payments to People, Cash, Fees, Other. These are only suggestions in the Category dropdown. Any name you type (in the Sheet or in a rule) becomes a category, and only categories you actually use appear on the Summary. `Uncategorized` is always the last column so leftovers are easy to spot.
 
 **Transfer** never counts as income or spending.
 

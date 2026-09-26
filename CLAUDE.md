@@ -20,6 +20,7 @@ Chase CSV exports → Google Sheet (Transactions / Summary / Charts / Rules tabs
 - Changing a category the user already settled on: only when they ask. Then `tracker.py recategorize --match TEXT` (repeatable). Plain `recategorize` only touches Uncategorized rows, and user edits in the Sheet are otherwise never overwritten.
 - When the user explains an obscure charge, record it: `tracker.py note <ID> "what it was"`.
 - Ask when a merchant is genuinely ambiguous rather than guessing.
+- Summary columns and chart categories are derived from the user's data (ordered by their own totals). Never hard-code a category order or someone's personal categories into the code.
 - Generic merchant rules belong in rules.default.csv (committed). Anything personal (landlord, workplace, friends' names, account numbers) goes in the Rules tab via `add-rule`, never in committed files.
 
 ## Splitting a row (e.g. roommate Zelle covering rent + utilities)
