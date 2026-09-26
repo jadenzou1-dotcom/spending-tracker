@@ -194,7 +194,7 @@ class SheetStore:
     def _write_charts(self, months: list[str], c0: str, c1: str, last: str, n_last: int) -> None:
         """Charts tab, driven by month dropdowns in row 1:
           A-I   bar charts from [B1] to [D1]: stacked spending (top 7 categories in
-                that range + "Everything else") and income vs spending
+                that range + "Everything else") and income vs spending vs net
           J->   two pies side by side, for the months in [K1] and [P1]
         Chart data are formulas over Summary, so changing a dropdown re-ranks and
         redraws. The tab is rebuilt on every run but keeps the dropdown choices."""
@@ -249,7 +249,7 @@ class SheetStore:
                    [norm("$B$1"), norm("$D$1"), norm("$K$1"), norm("$P$1")]]
         values += [[] for _ in range(T - H - 1)]
         values.append(["Month", top7, "", "", "", "", "", "", "Everything else", "",
-                       "Month", "Income", "Spent", "", "Pie 1", "", "", "Pie 2"])
+                       "Month", "Income", "Spent", "Net", "Pie 1", "", "", "Pie 2"])
         for i in range(N):
             r = T + 1 + i
             line = [f'=IFERROR(SORT(FILTER({mon},{mon}>={FROM},{mon}<={TO}),1,TRUE),"")' if i == 0 else ""]
@@ -258,7 +258,8 @@ class SheetStore:
             line += [f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 3)},0)-SUM(B{r}:H{r}))', "",
                      f'=IF($A{r}="","",$A{r})',
                      f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 2)},0))',
-                     f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 3)},0))', "",
+                     f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 3)},0))',
+                     f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 4)},0))',
                      pie(PIE1) if i == 0 else "", "", "",
                      pie(PIE2) if i == 0 else ""]
             values.append(line)
@@ -316,8 +317,9 @@ class SheetStore:
             {"addChart": {"chart": {"spec": columns("Spending by month (top 7 categories in range)", 0,
                                                     list(range(1, 9)), PALETTE + [OTHER_GRAY], stacked=True),
                                     "position": anchor(2, 0, 880, 400)}}},
-            {"addChart": {"chart": {"spec": columns("Income vs spending", 10, [11, 12],
-                                                    [PALETTE[0], PALETTE[1]], stacked=False),
+            # Net bars sit above zero in months you saved and dip below in months you overspent.
+            {"addChart": {"chart": {"spec": columns("Income vs spending (net = income - spent)", 10, [11, 12, 13],
+                                                    PALETTE[:3], stacked=False),
                                     "position": anchor(23, 0, 880, 300)}}},
             {"addChart": {"chart": {"spec": pie_chart("Pie 1: month in K1", 14), "position": anchor(2, 9, 480, 400)}}},
             {"addChart": {"chart": {"spec": pie_chart("Pie 2: month in P1", 17), "position": anchor(2, 14, 480, 400)}}},
