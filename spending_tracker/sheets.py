@@ -20,6 +20,7 @@ TX, SUMMARY, RULES, CHARTS = "Transactions", "Summary", "Rules", "Charts"
 # Categorical palette (fixed order, colorblind-checked for adjacent stacked segments).
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7"]
 OTHER_GRAY = "#9a9a94"
+OVERSPENT_RED = "#e34948"
 
 
 def _rgb(hex_color: str) -> dict:
@@ -194,11 +195,12 @@ class SheetStore:
     def _write_charts(self, months: list[str], c0: str, c1: str, last: str, n_last: int) -> None:
         """Charts tab, driven by month dropdowns in row 1:
           A-I   bar charts from [B1] to [D1]: stacked spending (top 7 categories in
-                that range + "Everything else") and income vs spending vs net
+                that range + "Everything else") and income vs spending, with
+                the difference as a Saved (aqua) or Overspent (red) bar
           J->   two pies side by side, for the months in [K1] and [P1]
         Chart data are formulas over Summary, so changing a dropdown re-ranks and
         redraws. The tab is rebuilt on every run but keeps the dropdown choices."""
-        ws = self._tab(CHARTS, rows=100, cols=20)
+        ws = self._tab(CHARTS, rows=100, cols=22)
         if not months:
             return
         old = (ws.get("A1:P1") or [[]])[0]
@@ -249,7 +251,7 @@ class SheetStore:
                    [norm("$B$1"), norm("$D$1"), norm("$K$1"), norm("$P$1")]]
         values += [[] for _ in range(T - H - 1)]
         values.append(["Month", top7, "", "", "", "", "", "", "Everything else", "",
-                       "Month", "Income", "Spent", "Net", "Pie 1", "", "", "Pie 2"])
+                       "Month", "Income", "Spent", "Saved", "Overspent", "Pie 1", "", "", "Pie 2"])
         for i in range(N):
             r = T + 1 + i
             line = [f'=IFERROR(SORT(FILTER({mon},{mon}>={FROM},{mon}<={TO}),1,TRUE),"")' if i == 0 else ""]
@@ -259,7 +261,9 @@ class SheetStore:
                      f'=IF($A{r}="","",$A{r})',
                      f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 2)},0))',
                      f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 3)},0))',
-                     f'=IF($A{r}="","",IFERROR({val(f"$A{r}", 4)},0))',
+                     # Net split by sign so both bars point up: Saved if >= 0, Overspent if < 0.
+                     f'=IF($A{r}="","",IF(IFERROR({val(f"$A{r}", 4)},0)>=0,IFERROR({val(f"$A{r}", 4)},0),""))',
+                     f'=IF($A{r}="","",IF(IFERROR({val(f"$A{r}", 4)},0)<0,-{val(f"$A{r}", 4)},""))',
                      pie(PIE1) if i == 0 else "", "", "",
                      pie(PIE2) if i == 0 else ""]
             values.append(line)
@@ -313,16 +317,17 @@ class SheetStore:
         requests += [cells(0, 1, c, c + 1, {"numberFormat": {"type": "TEXT"}}) for c in dropdowns]
         requests += [cells(0, 1, c, c + 1, {"textFormat": {"bold": True}}) for c in (0, 2, 9, 14)]
         requests += [
-            _range_fmt(sid, T, T + N, 1, 19, "CURRENCY", "$#,##0"),
+            _range_fmt(sid, T, T + N, 1, 20, "CURRENCY", "$#,##0"),
             {"addChart": {"chart": {"spec": columns("Spending by month (top 7 categories in range)", 0,
                                                     list(range(1, 9)), PALETTE + [OTHER_GRAY], stacked=True),
                                     "position": anchor(2, 0, 880, 400)}}},
-            # Net bars sit above zero in months you saved and dip below in months you overspent.
-            {"addChart": {"chart": {"spec": columns("Income vs spending (net = income - spent)", 10, [11, 12, 13],
-                                                    PALETTE[:3], stacked=False),
+            # Spent is violet, not orange, so it can't be mistaken for the red Overspent bar.
+            {"addChart": {"chart": {"spec": columns("Income vs spending (saved / overspent = the difference)", 10,
+                                                    [11, 12, 13, 14], [PALETTE[0], PALETTE[6], PALETTE[2], OVERSPENT_RED],
+                                                    stacked=False),
                                     "position": anchor(23, 0, 880, 300)}}},
-            {"addChart": {"chart": {"spec": pie_chart("Pie 1: month in K1", 14), "position": anchor(2, 9, 480, 400)}}},
-            {"addChart": {"chart": {"spec": pie_chart("Pie 2: month in P1", 17), "position": anchor(2, 14, 480, 400)}}},
+            {"addChart": {"chart": {"spec": pie_chart("Pie 1: month in K1", 15), "position": anchor(2, 9, 480, 400)}}},
+            {"addChart": {"chart": {"spec": pie_chart("Pie 2: month in P1", 18), "position": anchor(2, 14, 480, 400)}}},
         ]
         self.ss.batch_update({"requests": requests})
 
