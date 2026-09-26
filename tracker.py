@@ -1,6 +1,7 @@
 """Chase statement -> spending tracker.
 
   python tracker.py import Chase*_Activity_*.csv     add new transactions
+  python tracker.py sync [--dry-run]                  add new transactions from Plaid
   python tracker.py recategorize [--match TEXT]       re-apply rules to Uncategorized rows
                                                       (or to every row containing TEXT)
   python tracker.py uncategorized                     list rows that still need a category
@@ -16,10 +17,11 @@ Add --local to use data/transactions.csv instead of Google Sheets.
 import argparse
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
-from spending_tracker.categorize import DEFAULT_RULES_PATH, UNCATEGORIZED, load_rules
+from spending_tracker.categorize import DEFAULT_RULES_PATH, UNCATEGORIZED, categorize, load_rules
 from spending_tracker.core import merge, print_summary, recategorize, split
 from spending_tracker.local_store import LocalStore
 from spending_tracker.parsers import parse_chase_csv
@@ -30,7 +32,10 @@ LOCAL_RULES = ROOT / "rules.local.csv"
 
 def load_config() -> dict:
     path = ROOT / "config.json"
-    return json.loads(path.read_text()) if path.exists() else {}
+    if path.exists():
+        return json.loads(path.read_text())
+    # Scheduled runs have no config.json; they pass the same JSON as a secret.
+    return json.loads(os.environ.get("TRACKER_CONFIG") or "{}")
 
 
 def local_rules() -> list:
@@ -67,6 +72,8 @@ def main():
     sub = p.add_subparsers(dest="cmd", required=True)
     imp = sub.add_parser("import")
     imp.add_argument("files", nargs="+")
+    syn = sub.add_parser("sync")
+    syn.add_argument("--dry-run", action="store_true", help="show what would be added without changing anything")
     rec = sub.add_parser("recategorize")
     rec.add_argument("--match", action="append", help="re-apply rules to all rows containing this text, not just Uncategorized (repeatable)")
     sub.add_parser("uncategorized")
@@ -110,6 +117,29 @@ def main():
               f"{stats['uncategorized']} new rows Uncategorized.")
         print()
         print_summary(txns)
+    elif args.cmd == "sync":
+        from spending_tracker import plaid
+        data = plaid.fetch(store.read_cursor())
+        incoming = plaid.to_txns(data, cfg.get("accounts"))
+        pending = sum(p["pending"] for p in data["added"])
+        known = {t.id for t in txns}
+        new = [t for t in incoming if t.id not in known]
+        print(f"Plaid: {len(incoming)} posted ({len(incoming) - len(new)} already in the ledger), "
+              f"{pending} pending skipped until they post.")
+        if args.dry_run:
+            for t in new:
+                t.category = categorize(t, rules)
+                print(_line(t))
+            print(f"Dry run: would add {len(new)} rows. Nothing was changed.")
+            return
+        if new:
+            txns, stats = merge(txns, incoming, rules)
+            store.write(txns)
+            print(f"Added {stats['added']}, {stats['cancelled_pairs']} cancelled/refunded pairs excluded, "
+                  f"{stats['uncategorized']} new rows Uncategorized.")
+        # Save the bookmark only after the rows are written, so a failed run
+        # fetches the same transactions again next time (their IDs dedupe).
+        store.write_cursor(data["cursor"])
     elif args.cmd == "recategorize":
         n = recategorize(txns, rules, args.match)
         store.write(txns)

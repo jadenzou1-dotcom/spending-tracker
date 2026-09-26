@@ -1,6 +1,6 @@
 # spending-tracker
 
-Chase CSV exports → Google Sheet (Transactions / Summary / Charts / Rules tabs). Run with `.venv/bin/python tracker.py ...`. User-facing docs are in README.md.
+Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Charts / Rules tabs, plus a hidden Sync tab holding Plaid's cursor). Run with `.venv/bin/python tracker.py ...`. User-facing docs are in README.md.
 
 ## Keeping things in sync (always)
 - Every change to code, rules.default.csv or docs gets committed **and pushed** to GitHub (`origin main`) in the same turn, so the local folder and the GitHub repo never drift. "Commit" means commit and push.
@@ -8,7 +8,13 @@ Chase CSV exports → Google Sheet (Transactions / Summary / Charts / Rules tabs
 - When behavior, commands or layout change, update README.md and this file before committing. Don't leave old wording behind.
 - Before committing, run `git status` and make sure nothing personal is staged (see Privacy).
 
-## Monthly workflow
+## Plaid sync (the default now)
+- `tracker.py sync [--dry-run]` pulls new **posted** transactions from Plaid (`/transactions/sync`, `original_description` so rules match). Rows get the same IDs the CSV parser would give (`_make_id` on posted date), so CSV imports and syncs never duplicate each other. Card rows show Plaid's `authorized_date`, checking rows the posted date. Plaid's detailed category goes in the Chase Category column and is the fallback via `PLAID_CATEGORY_MAP`.
+- Credentials: env vars `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ACCESS_TOKEN` (locally they fall back to the Mac Keychain, service `spending-tracker-plaid`), `GOOGLE_SERVICE_ACCOUNT_JSON`, `TRACKER_CONFIG`. Never print or commit them.
+- Scheduled runs: GitHub Actions in a separate **private** repo using `examples/sync-workflow.yml`, never a workflow in this public repo (its logs are public).
+- `tools/plaid_link.py` connects a bank once. Each run uses one of the Trial plan's 10 Items, so don't rerun it casually.
+
+## Monthly workflow (CSV, still supported)
 1. User downloads the "all transactions" CSV for **both** accounts (checking and credit card) from each account's activity page on chase.com (download icon → Spreadsheet). Statements & Documents only has PDFs.
 2. `tracker.py import ~/Downloads/Chase*_Activity_*.csv`. It removes duplicates by ID, so overlapping ranges are safe.
 3. Categorize leftovers (below) and apply any splits or notes the user describes.

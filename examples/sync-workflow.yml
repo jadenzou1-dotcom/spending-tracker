@@ -1,0 +1,30 @@
+# Scheduled Plaid -> Google Sheet sync. Copy this to .github/workflows/sync.yml
+# in your own PRIVATE repo (Actions logs on a public repo are public), and add
+# the five secrets below under Settings -> Secrets and variables -> Actions.
+# See README.md, "Daily sync with Plaid".
+name: Sync transactions
+
+on:
+  schedule:
+    - cron: "23 10,22 * * *"   # twice a day, in UTC; GitHub may start it late
+  workflow_dispatch:            # adds a "Run workflow" button
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: jadenzou1-dotcom/spending-tracker   # or your fork
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python tracker.py sync
+        env:
+          PLAID_CLIENT_ID: ${{ secrets.PLAID_CLIENT_ID }}
+          PLAID_SECRET: ${{ secrets.PLAID_SECRET }}
+          PLAID_ACCESS_TOKEN: ${{ secrets.PLAID_ACCESS_TOKEN }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TRACKER_CONFIG: ${{ secrets.TRACKER_CONFIG }}

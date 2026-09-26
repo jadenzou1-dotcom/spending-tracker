@@ -38,3 +38,11 @@ class LocalStore:
             w = csv.writer(f)
             w.writerow(HEADERS)
             w.writerows(txn_to_row(t) for t in txns)
+
+    # Plaid's sync bookmark, next to the ledger.
+    def read_cursor(self) -> str:
+        p = self.path.with_name("plaid_cursor.txt")
+        return p.read_text().strip() if p.exists() else ""
+
+    def write_cursor(self, cursor: str) -> None:
+        self.path.with_name("plaid_cursor.txt").write_text(cursor)

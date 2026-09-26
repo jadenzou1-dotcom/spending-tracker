@@ -1,7 +1,8 @@
 """Assign a spending category to each transaction.
 
 Order: your rules (first matching pattern wins) -> Chase transaction type ->
-Chase's own category (credit card CSVs only) -> "Uncategorized".
+Chase's own category (credit card CSVs only) or Plaid's category (rows from
+`sync`) -> "Uncategorized".
 """
 import csv
 import re
@@ -60,6 +61,49 @@ CHASE_CATEGORY_MAP = {
     "Professional Services": "Other",
 }
 
+# Plaid's personal_finance_category (rows from `sync`). The detailed value is
+# looked up first, then its primary group (the prefix, e.g. FOOD_AND_DRINK).
+PLAID_CATEGORY_MAP = {
+    "TRANSFER_IN_ACCOUNT_TRANSFER": TRANSFER,
+    "TRANSFER_OUT_ACCOUNT_TRANSFER": TRANSFER,
+    "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT": TRANSFER,   # checking side of paying the card
+    "LOAN_DISBURSEMENTS_OTHER_DISBURSEMENT": TRANSFER,  # card side of the same payment
+    "TRANSFER_IN_TRANSFER_IN_FROM_APPS": "Other Income",    # Zelle / Venmo received
+    "TRANSFER_OUT_TRANSFER_OUT_FROM_APPS": "Payments to People",
+    "TRANSFER_OUT_WITHDRAWAL": "Cash",
+    "INCOME_SALARY": "Work Income",
+    "INCOME_WAGES": "Work Income",
+    "INCOME": "Other Income",
+    "RENT_AND_UTILITIES_RENT": "Rent",
+    "RENT_AND_UTILITIES": "Utilities & Phone",
+    "FOOD_AND_DRINK_GROCERIES": "Groceries",
+    "FOOD_AND_DRINK_VENDING_MACHINES": "Snacks",
+    "FOOD_AND_DRINK": "Dining",
+    "GENERAL_MERCHANDISE_CONVENIENCE_STORES": "Groceries",
+    "GENERAL_MERCHANDISE": "Shopping",
+    "HOME_IMPROVEMENT": "Shopping",
+    "ENTERTAINMENT_VIDEO_GAMES": "Gaming",
+    "ENTERTAINMENT_TV_AND_MOVIES": "Subscriptions",
+    "ENTERTAINMENT": "Entertainment",
+    "TRANSPORTATION": "Transport",
+    "TRAVEL": "Travel",
+    "MEDICAL": "Health & Fitness",
+    "PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS": "Health & Fitness",
+    "PERSONAL_CARE": "Personal Care",
+    "BANK_FEES": "Fees",
+    "GENERAL_SERVICES": "Other",
+    "GOVERNMENT_AND_NON_PROFIT": "Other",
+}
+
+
+def _plaid_category(pfc: str) -> str | None:
+    if pfc in PLAID_CATEGORY_MAP:
+        return PLAID_CATEGORY_MAP[pfc]
+    for key in sorted(PLAID_CATEGORY_MAP, key=len, reverse=True):
+        if pfc.startswith(key + "_"):
+            return PLAID_CATEGORY_MAP[key]
+    return None
+
 
 def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).upper().strip()
@@ -84,7 +128,7 @@ def categorize(t: Txn, rules: list[tuple[str, str]]) -> str:
         return TYPE_MAP[t.chase_type]
     if t.chase_category in CHASE_CATEGORY_MAP:
         return CHASE_CATEGORY_MAP[t.chase_category]
-    return UNCATEGORIZED
+    return _plaid_category(t.chase_category) or UNCATEGORIZED
 
 
 DEFAULT_RULES_PATH = Path(__file__).resolve().parent.parent / "rules.default.csv"

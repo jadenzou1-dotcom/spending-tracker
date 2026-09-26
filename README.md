@@ -2,7 +2,7 @@
 
 Turn Chase bank and credit card exports into a categorized, month-by-month spending tracker in Google Sheets.
 
-Download your transaction CSVs from Chase, run one command, and your Google Sheet gets:
+Download your transaction CSVs from Chase and run one command, or connect Chase through [Plaid](https://plaid.com) once and let a scheduled job pull new transactions twice a day. Either way your Google Sheet gets:
 
 - **Transactions**: every transaction from every account, newest first, with a category dropdown, an Exclude column and a Notes column
 - **Summary**: income, spending, net and % of income spent per month, plus a column per income source and spending category, **ordered by your own totals** (biggest first), all as live formulas
@@ -16,7 +16,7 @@ It handles the parts that make bank data annoying:
 | Credit card payments show up in checking *and* on the card, which counts spending twice | Card payments and moves between your own accounts are categorized **Transfer** and never count as spending or income |
 | Re-downloading overlapping date ranges | Every transaction gets a stable ID, so re-importing the same file adds nothing |
 | Cancelled orders (charge, then refund) | A charge followed within 10 days by an equal refund from the same merchant gets `cancelled` in Exclude on both rows. A charge → refund → charge leaves the second charge counted. |
-| Chase's PDFs have no categories, and its CSV categories are coarse | Your rules run first, then Chase's transaction type, then Chase's category (card CSVs only). Anything left is `Uncategorized` for you (or Claude) to sort. |
+| Chase's PDFs have no categories, and its CSV categories are coarse | Your rules run first, then Chase's transaction type, then Chase's category (card CSVs) or Plaid's category (synced rows, both accounts). Anything left is `Uncategorized` for you (or Claude) to sort. |
 | One payment covering several things (e.g. a roommate's Zelle for rent + utilities) | `split` divides one row across categories |
 
 ## Quick start (no Google account needed)
@@ -63,11 +63,37 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 You can also edit Category, Exclude and Notes directly in the Sheet. Your edits are kept on every re-import.
 
+## Daily sync with Plaid (optional)
+
+Instead of downloading CSVs, connect Chase to [Plaid](https://plaid.com) once and have a scheduled job run `tracker.py sync`. It adds new **posted** transactions (pending ones wait until they post) and categorizes them like an import. Synced rows get the same IDs a CSV import would, so you can mix the two freely and nothing is added twice. Plaid's sync bookmark is kept in a hidden `Sync` tab.
+
+1. **Plaid account.** Sign up at [dashboard.plaid.com](https://dashboard.plaid.com). New US/Canada teams can take the free **Trial plan** (real bank data, up to 10 connected logins, Chase included, no compliance forms). Your client_id and secret are under **Build → Keys** (use the Production secret).
+2. **Connect Chase once:**
+   ```bash
+   .venv/bin/python tools/plaid_link.py
+   ```
+   It opens Plaid Link in your browser. Log in to Chase and **share every account** you want tracked (checking and card). On a Mac the keys and the resulting access token go into the Keychain and are never printed. It lists each account's last 4 digits; name them in `config.json` `"accounts"` as usual.
+3. **Try it locally:** `.venv/bin/python tracker.py sync --dry-run` shows what would be added without changing anything; then run `tracker.py sync`.
+4. **Schedule it with GitHub Actions in a private repo.** Actions logs on a public repo are public, so create a separate **private** repo (e.g. `spending-tracker-runner`), copy [`examples/sync-workflow.yml`](examples/sync-workflow.yml) to `.github/workflows/sync.yml` in it, and add these secrets under Settings → Secrets and variables → Actions:
+
+   | Secret | Value |
+   |---|---|
+   | `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ACCESS_TOKEN` | from step 1–2 |
+   | `GOOGLE_SERVICE_ACCOUNT_JSON` | the contents of `service_account.json` |
+   | `TRACKER_CONFIG` | the contents of `config.json` |
+
+   With the [GitHub CLI](https://cli.github.com) you can set them without the values ever appearing on screen, e.g. `security find-generic-password -s spending-tracker-plaid -a access_token -w | gh secret set PLAID_ACCESS_TOKEN -R you/spending-tracker-runner` and `gh secret set TRACKER_CONFIG -R you/spending-tracker-runner < config.json`.
+
+   The workflow downloads this public repo's code and runs `tracker.py sync` twice a day (GitHub may start scheduled runs a little late). Use **Actions → Sync transactions → Run workflow** to run it right away.
+
+`sync` reads credentials from the environment variables `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ACCESS_TOKEN` (falling back to the Mac Keychain), `GOOGLE_SERVICE_ACCOUNT_JSON` (instead of the `credentials` file) and `TRACKER_CONFIG` (instead of `config.json`).
+
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `import FILE...` | Add new transactions from Chase CSVs |
+| `sync [--dry-run]` | Add new posted transactions from Plaid (see [Daily sync with Plaid](#daily-sync-with-plaid-optional)) |
 | `uncategorized` | List rows that still need a category |
 | `add-rule "PATTERN" "Category"` | Save a rule (case-insensitive substring of the description). Newest rules win. |
 | `recategorize [--match TEXT]` | Re-apply rules to Uncategorized rows, or with `--match` to every row containing TEXT |
@@ -82,7 +108,7 @@ Add `--local` before any command to use `data/transactions.csv` instead of the S
 
 The Summary and Charts are built from **whatever categories you use**. There's no fixed list of columns: each category gets a column, biggest spending first, and the charts pick your top 7 for the months you choose. So the first job after your first import is sorting your transactions:
 
-1. `import` your CSVs. [`rules.default.csv`](rules.default.csv) sorts common merchants (DoorDash, Uber, Netflix, Trader Joe's, …), and card transactions fall back to Chase's own category.
+1. `import` your CSVs (or `sync`). [`rules.default.csv`](rules.default.csv) sorts common merchants (DoorDash, Uber, Netflix, Trader Joe's, …), and card transactions fall back to Chase's own category (synced rows fall back to Plaid's).
 2. Everything else is `Uncategorized`. Go through it with `uncategorized`, and for each merchant you'll see again, `add-rule` it; for one-offs, `set` it or pick from the dropdown in the Sheet. Use the categories below or make up your own.
 3. Re-run `recategorize` after adding rules. The Summary and Charts rebuild around your categories.
 
@@ -113,7 +139,7 @@ The repo includes a [`CLAUDE.md`](CLAUDE.md), so [Claude Code](https://claude.co
 
 ## Privacy
 
-Everything personal stays on your machine or in your own Google account. `.gitignore` excludes `config.json`, `service_account.json`, `rules.local.csv`, `data/` and every CSV except the examples and default rules. Nothing is sent anywhere except the Google Sheets API, using your own service account.
+Everything personal stays on your machine or in your own Google account. `.gitignore` excludes `config.json`, `service_account.json`, `rules.local.csv`, `data/` and every CSV except the examples and default rules. Nothing is sent anywhere except the Google Sheets API (your own service account) and, if you use `sync`, Plaid (your own keys). Plaid keys live in the Mac Keychain locally and in a private repo's encrypted Actions secrets for scheduled runs, never in files in this repo.
 
 ## Project layout
 
@@ -121,13 +147,15 @@ Everything personal stays on your machine or in your own Google account. `.gitig
 tracker.py                  command-line entry point
 spending_tracker/
   parsers.py                Chase CSV → transactions (checking + credit card formats)
-  categorize.py             categories and the rules → type → Chase-category cascade
+  categorize.py             categories and the rules → type → Chase/Plaid-category cascade
+  plaid.py                  Plaid /transactions/sync → transactions (same IDs as CSV rows)
   pairing.py                cancelled-order detection
   core.py                   merge/dedupe, recategorize, split, monthly totals
   sheets.py                 Google Sheets tabs, Summary formulas, Charts tab
   local_store.py            CSV storage for --local mode
+tools/plaid_link.py         one-time Plaid Link to connect your bank
 rules.default.csv           built-in merchant rules
-examples/                   fake Chase CSVs to try it out
+examples/                   fake Chase CSVs to try it out, and a scheduled-sync workflow
 ```
 
 Only Chase is supported so far. Adding a bank means adding a parser that returns the same `Txn` objects.

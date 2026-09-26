@@ -5,6 +5,8 @@ Charts are rebuilt with live formulas on every run, so edits in the sheet update
 them immediately. Rules holds your personal pattern -> category rules, checked
 before the defaults.
 """
+import json
+import os
 from collections import defaultdict
 from pathlib import Path
 
@@ -15,7 +17,7 @@ from .categorize import (ALL_CATEGORIES, DEFAULT_RULES_PATH, INCOME_CATEGORIES, 
 from .local_store import HEADERS, row_to_txn
 from .parsers import Txn
 
-TX, SUMMARY, RULES, CHARTS = "Transactions", "Summary", "Rules", "Charts"
+TX, SUMMARY, RULES, CHARTS, SYNC = "Transactions", "Summary", "Rules", "Charts", "Sync"
 
 # Categorical palette (fixed order, colorblind-checked for adjacent stacked segments).
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7"]
@@ -47,10 +49,14 @@ def _col(n: int) -> str:
 
 class SheetStore:
     def __init__(self, cfg: dict):
-        creds = Path(cfg["credentials"]).expanduser()
-        if not creds.is_absolute():
-            creds = Path(__file__).resolve().parent.parent / creds
-        gc = gspread.service_account(filename=str(creds))
+        if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
+            # Scheduled runs pass the key's contents as a secret instead of a file.
+            gc = gspread.service_account_from_dict(json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]))
+        else:
+            creds = Path(cfg["credentials"]).expanduser()
+            if not creds.is_absolute():
+                creds = Path(__file__).resolve().parent.parent / creds
+            gc = gspread.service_account(filename=str(creds))
         self.ss = gc.open_by_key(cfg["sheet_id"])
         self.tx = self._tab(TX, rows=1000, cols=len(HEADERS))
 
@@ -84,6 +90,23 @@ class SheetStore:
     def add_rule(self, pattern: str, category: str) -> None:
         # Row 2 = top of the list, so the newest rule wins over older ones.
         self.ss.worksheet(RULES).insert_row([pattern, category], index=2, value_input_option="RAW")
+
+    # ---- sync state ----
+    def read_cursor(self) -> str:
+        """Plaid's sync bookmark, kept in A1 of a hidden "Sync" tab."""
+        try:
+            return self.ss.worksheet(SYNC).acell("A1").value or ""
+        except gspread.WorksheetNotFound:
+            return ""
+
+    def write_cursor(self, cursor: str) -> None:
+        try:
+            ws = self.ss.worksheet(SYNC)
+        except gspread.WorksheetNotFound:
+            ws = self.ss.add_worksheet(SYNC, rows=5, cols=2)
+            ws.hide()
+        ws.update(values=[[cursor], ["Plaid sync bookmark, used by `tracker.py sync`. Don't edit."]],
+                  range_name="A1", value_input_option="RAW")
 
     # ---- transactions ----
     def read(self) -> list[Txn]:
