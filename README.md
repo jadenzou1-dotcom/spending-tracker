@@ -7,7 +7,9 @@ Download your transaction CSVs from Chase and run one command, or connect Chase 
 - **Transactions**: every transaction from every account, newest first, with a category dropdown, an Exclude column and a Notes column
 - **Summary**: income, spending, net and % of income spent per month, plus a column per income source and spending category, **ordered by your own totals** (biggest first), all as live formulas. The totals, income and spending column groups are shaded gray / green / orange with a thick line between them
 - **Charts**: pick any month range (e.g. the last 3 months, or March to June) to see stacked monthly spending for your top 7 categories in that range, income vs spending with the difference shown as a Saved (aqua) or Overspent (red) bar, and two pies side by side to compare any two months, each slice labeled with its name and %
-- **Dashboard** (`tracker.py dashboard`): an interactive page on your own computer. Compare any two months side by side, click a category (in a donut, the list or the monthly bars) and its transactions for both months appear instantly
+- **Dashboard** (`tracker.py dashboard`): an interactive page served on your own computer only.
+  - **Compare**: pick as many months as you like; one row per category, one column per month. Click a category (in the table, a donut or the monthly bars) and its transactions for every chosen month appear side by side.
+  - **Budget**: enter your planned monthly income and a goal per category (% of income or $ per month), then see each month's spending against the goals, what's over or under, and plan vs actual. Goals are saved to a **Goals** tab in your Sheet.
 - **Rules**: your own "merchant → category" rules, editable from any computer
 
 It handles the parts that make bank data annoying:
@@ -102,7 +104,7 @@ Instead of downloading CSVs, connect Chase to [Plaid](https://plaid.com) once an
 | `note ID "text"` | Add a note to a row, e.g. what an obscure merchant name turned out to be |
 | `search TEXT` | Find rows by description or note (shows IDs) |
 | `split ID "Utilities & Phone=40" Rent` | Split one row across categories. One part may omit its amount and gets the remainder. |
-| `dashboard [--no-open]` | Build `data/dashboard.html` from the ledger and open it in your browser. Rerun it to refresh. |
+| `dashboard [--no-open] [--static]` | Start the dashboard at http://127.0.0.1:8765 and open it (Ctrl-C to stop). Reload the page for fresh data. `--static` writes `data/dashboard.html` instead (goals not editable). |
 
 Add `--local` before any command to use `data/transactions.csv` instead of the Sheet. IDs can be shortened to their first 8 characters.
 
@@ -141,7 +143,7 @@ The repo includes a [`CLAUDE.md`](CLAUDE.md), so [Claude Code](https://claude.co
 
 ## Privacy
 
-Everything personal stays on your machine or in your own Google account. `.gitignore` excludes `config.json`, `service_account.json`, `rules.local.csv`, `data/` and every CSV except the examples and default rules. The dashboard is a local file in `data/` with your transactions inside it. Nothing is sent anywhere except the Google Sheets API (your own service account) and, if you use `sync`, Plaid (your own keys). Plaid keys live in the Mac Keychain locally and in a private repo's encrypted Actions secrets for scheduled runs, never in files in this repo.
+Everything personal stays on your machine or in your own Google account. `.gitignore` excludes `config.json`, `service_account.json`, `rules.local.csv`, `data/` and every CSV except the examples and default rules. The dashboard runs only on 127.0.0.1 (other devices and websites can't reach it), and `--static` pages stay in `data/`. Nothing is sent anywhere except the Google Sheets API (your own service account) and, if you use `sync`, Plaid (your own keys). Plaid keys live in the Mac Keychain locally and in a private repo's encrypted Actions secrets for scheduled runs, never in files in this repo.
 
 ## Project layout
 

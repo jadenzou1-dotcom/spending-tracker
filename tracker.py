@@ -11,7 +11,8 @@
   python tracker.py search "zelle"                    find rows (shows IDs)
   python tracker.py split ID "Utilities & Phone=40" Rent
                                                       split one row across categories
-  python tracker.py dashboard [--no-open]             build data/dashboard.html and open it
+  python tracker.py dashboard [--no-open] [--static]  open the interactive dashboard (local server;
+                                                      --static writes data/dashboard.html instead)
 
 Add --local to use data/transactions.csv instead of Google Sheets.
 """
@@ -93,11 +94,17 @@ def main():
     sp.add_argument("id")
     sp.add_argument("parts", nargs="+", help='"Category=amount" ..., one may omit =amount to take the rest')
     dash = sub.add_parser("dashboard")
-    dash.add_argument("--no-open", action="store_true", help="build the page without opening it")
+    dash.add_argument("--no-open", action="store_true", help="don't open a browser")
+    dash.add_argument("--static", action="store_true", help="write data/dashboard.html instead of serving it")
+    dash.add_argument("--port", type=int, default=8765)
     args = p.parse_args()
 
     cfg = load_config()
     store, rules = open_store(args, cfg)
+    if args.cmd == "dashboard" and not args.static:
+        from spending_tracker.dashboard import serve
+        serve(store, args.port, not args.no_open)
+        return
     if args.cmd == "add-rule":
         if isinstance(store, LocalStore):
             _add_local_rule(args.pattern, args.category)
@@ -167,7 +174,7 @@ def main():
                 print(_line(t))
     elif args.cmd == "dashboard":
         from spending_tracker.dashboard import build
-        out = build(txns, ROOT / "data" / "dashboard.html")
+        out = build(txns, store.read_goals(), ROOT / "data" / "dashboard.html")
         print(f"Wrote {out}")
         if not args.no_open:
             import webbrowser

@@ -13,6 +13,23 @@ def txn_to_row(t: Txn) -> list:
             t.account, t.chase_category, t.chase_type, t.month, t.id, t.note]
 
 
+def goals_to_rows(goals: dict) -> list:
+    return ([["Planned monthly income", goals["income"]], [], ["Category", "Goal", "Unit (% of income or $)"]]
+            + [[g["cat"], g["value"], g["unit"]] for g in goals["goals"]])
+
+
+def parse_goals(rows: list) -> dict:
+    def num(s):
+        try:
+            return float(str(s).replace(",", "").replace("$", "").replace("%", ""))
+        except ValueError:
+            return 0.0
+    income = num(rows[0][1]) if rows and len(rows[0]) > 1 else 0.0
+    goals = [{"cat": r[0].strip(), "value": num(r[1]), "unit": "$" if r[2:3] == ["$"] else "%"}
+             for r in rows[3:] if len(r) >= 2 and r[0].strip()]
+    return {"income": income, "goals": goals}
+
+
 def row_to_txn(r: dict) -> Txn:
     return Txn(
         date=date.fromisoformat(r["Date"]), description=r["Description"],
@@ -46,3 +63,15 @@ class LocalStore:
 
     def write_cursor(self, cursor: str) -> None:
         self.path.with_name("plaid_cursor.txt").write_text(cursor)
+
+    # Budget goals, same layout as the Sheet's Goals tab.
+    def read_goals(self) -> dict:
+        p = self.path.with_name("goals.csv")
+        if not p.exists():
+            return {"income": 0, "goals": []}
+        with open(p, newline="", encoding="utf-8") as f:
+            return parse_goals(list(csv.reader(f)))
+
+    def write_goals(self, goals: dict) -> None:
+        with open(self.path.with_name("goals.csv"), "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerows(goals_to_rows(goals))

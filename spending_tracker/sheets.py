@@ -15,10 +15,10 @@ from gspread.http_client import BackOffHTTPClient
 
 from .categorize import (ALL_CATEGORIES, DEFAULT_RULES_PATH, INCOME_CATEGORIES, UNCATEGORIZED,
                          is_income, is_spending, load_rules)
-from .local_store import HEADERS, row_to_txn
+from .local_store import HEADERS, goals_to_rows, parse_goals, row_to_txn
 from .parsers import Txn
 
-TX, SUMMARY, RULES, CHARTS, SYNC = "Transactions", "Summary", "Rules", "Charts", "Sync"
+TX, SUMMARY, RULES, CHARTS, GOALS, SYNC = "Transactions", "Summary", "Rules", "Charts", "Goals", "Sync"
 
 # Categorical palette (fixed order, colorblind-checked for adjacent stacked segments).
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7"]
@@ -95,6 +95,21 @@ class SheetStore:
     def add_rule(self, pattern: str, category: str) -> None:
         # Row 2 = top of the list, so the newest rule wins over older ones.
         self.ss.worksheet(RULES).insert_row([pattern, category], index=2, value_input_option="RAW")
+
+    # ---- budget goals ----
+    def read_goals(self) -> dict:
+        """Goals tab, written by the dashboard's Budget view (also editable here):
+        B1 = planned monthly income; rows from 4 = Category | Goal | Unit (% of income or $)."""
+        try:
+            values = self.ss.worksheet(GOALS).get_all_values()
+        except gspread.WorksheetNotFound:
+            return {"income": 0, "goals": []}
+        return parse_goals(values)
+
+    def write_goals(self, goals: dict) -> None:
+        ws = self._tab(GOALS, rows=100, cols=3)
+        ws.clear()
+        ws.update(values=goals_to_rows(goals), range_name="A1", value_input_option="RAW")
 
     # ---- sync state ----
     def read_cursor(self) -> str:

@@ -1,6 +1,6 @@
 # spending-tracker
 
-Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Charts / Rules tabs, plus a hidden Sync tab holding Plaid's cursor). Run with `.venv/bin/python tracker.py ...`. User-facing docs are in README.md.
+Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Charts / Rules / Goals tabs, plus a hidden Sync tab holding Plaid's cursor). Run with `.venv/bin/python tracker.py ...`. User-facing docs are in README.md.
 
 ## Keeping things in sync (always)
 - Every change to code, rules.default.csv or docs gets committed **and pushed** to GitHub (`origin main`) in the same turn, so the local folder and the GitHub repo never drift. "Commit" means commit and push.
@@ -9,7 +9,8 @@ Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Chart
 - Before committing, run `git status` and make sure nothing personal is staged (see Privacy).
 
 ## Dashboard (where analysis lives)
-- `tracker.py dashboard` writes `data/dashboard.html` (gitignored: it embeds real transactions) from `spending_tracker/dashboard.html`, a no-dependency template. It counts the same rows as the Summary (Exclude blank, no Transfers). Interactive analysis goes here, not into new Sheet tabs; the Sheet keeps Transactions / Summary / Charts.
+- `tracker.py dashboard` serves `spending_tracker/dashboard.html` (no-dependency template, re-read on every request) from 127.0.0.1 with fresh ledger data per reload; `--static` writes `data/dashboard.html` (gitignored: it embeds real transactions). It counts the same rows as the Summary (Exclude blank, no Transfers). Interactive analysis goes here, not into new Sheet tabs; the Sheet keeps Transactions / Summary / Charts.
+- Budget goals live in the Sheet's **Goals** tab (B1 planned income; rows from 4: Category | Goal | % or $), or `data/goals.csv` with `--local`. The page saves them via POST /api/goals, guarded by a per-run token and a Host check. They're the user's personal numbers: never set them unless asked.
 
 ## Plaid sync (the default now)
 - `tracker.py sync [--dry-run]` pulls new **posted** transactions from Plaid (`/transactions/sync`, `original_description` so rules match). Rows get the same IDs the CSV parser would give (`_make_id` on posted date), so CSV imports and syncs never duplicate each other. Card rows show Plaid's `authorized_date`, checking rows the posted date. Plaid's detailed category goes in the Chase Category column and is the fallback via `PLAID_CATEGORY_MAP`.

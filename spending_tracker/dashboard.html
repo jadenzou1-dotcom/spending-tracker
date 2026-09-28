@@ -7,84 +7,108 @@
 <style>
 :root {
   --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e4e2dc;
-  --hover: #f1efe9; --accent: #2a78d6; --good: #1a8a5a; --bad: #d23f3e; --gray: #b3b2ab;
+  --hover: #f1efe9; --good: #1a8a5a; --bad: #d23f3e; --gray: #b3b2ab; --track: #ecebe6;
   --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9c9b94; --line: #33332f;
-    --hover: #2a2a27; --accent: #5b9cf0; --good: #3fbf86; --bad: #f06a69; --gray: #5d5d58;
-    --shadow: none;
+    --hover: #2a2a27; --good: #3fbf86; --bad: #f06a69; --gray: #5d5d58; --track: #2e2e2b; --shadow: none;
   }
 }
 :root[data-theme="dark"] {
   --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9c9b94; --line: #33332f;
-  --hover: #2a2a27; --accent: #5b9cf0; --good: #3fbf86; --bad: #f06a69; --gray: #5d5d58;
-  --shadow: none;
+  --hover: #2a2a27; --good: #3fbf86; --bad: #f06a69; --gray: #5d5d58; --track: #2e2e2b; --shadow: none;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-variant-numeric: tabular-nums; }
-main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; }
-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; }
+main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
 h2 { font-size: 15px; margin: 0; }
-.muted { color: var(--muted); }
-.small { font-size: 12px; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px; }
-.row { display: flex; align-items: center; gap: 8px; }
-.between { justify-content: space-between; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
 section { margin-top: 16px; }
-select, input[type=search] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
-  border-radius: 8px; padding: 6px 10px; }
-button.chip { font: inherit; font-size: 12px; color: var(--muted); background: none; border: 1px solid var(--line);
-  border-radius: 999px; padding: 3px 10px; cursor: pointer; }
-button.chip:hover { color: var(--ink); background: var(--hover); }
+.row { display: flex; align-items: center; gap: 8px; } .between { justify-content: space-between; } .wrap { flex-wrap: wrap; }
+select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+input[type=number] { width: 84px; text-align: right; }
+button { font: inherit; color: var(--ink); cursor: pointer; }
+.btn { font-size: 13px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
+.btn:hover { background: var(--hover); }
+.btn:disabled { opacity: .4; cursor: default; }
+.x { background: none; border: 0; color: var(--muted); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+.x:hover { background: var(--hover); color: var(--ink); }
+.tabs { display: inline-flex; background: var(--track); border-radius: 10px; padding: 3px; }
+.tabs button { border: 0; background: none; padding: 6px 16px; border-radius: 8px; color: var(--muted); font-weight: 500; }
+.tabs button.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.good { color: var(--good); } .bad { color: var(--bad); }
+.scroll { overflow-x: auto; }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px;
+  padding: 6px 8px; border-radius: 6px; opacity: 0; transition: opacity .08s; z-index: 10; white-space: nowrap; }
 
 /* trend */
-#trend svg { width: 100%; height: 240px; display: block; overflow: visible; }
-#trend .seg { cursor: pointer; transition: opacity .12s; }
-#trend .axis text { fill: var(--muted); font-size: 11px; }
-#trend .axis line { stroke: var(--line); }
-#trend .mlabel { cursor: pointer; }
-#trend .mlabel.sel { fill: var(--ink); font-weight: 600; }
+#trend-chart svg { display: block; }
+#trend-chart .seg, #trend-chart .hit { cursor: pointer; }
+.axis text { fill: var(--muted); font-size: 11px; }
+.axis line { stroke: var(--line); }
 .legend-inline { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .legend-inline i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 
-/* month panels */
-.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
-.kpi { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
-.kpi b { display: block; font-size: 18px; }
-.body { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: start; }
-@media (max-width: 520px) { .body { grid-template-columns: 1fr; } .donut { max-width: 200px; margin: 0 auto; } }
-.donut svg { width: 100%; display: block; }
-.donut path { cursor: pointer; stroke: var(--panel); stroke-width: 1.5; transition: opacity .12s; }
-.cats { display: flex; flex-direction: column; }
-.cat { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 34px 52px; gap: 6px; align-items: center; text-align: left;
-  font: inherit; color: inherit; background: none; border: 0; border-radius: 6px; padding: 5px 6px; cursor: pointer; }
-.cat:hover { background: var(--hover); }
-.cat.sel { background: var(--hover); box-shadow: inset 0 0 0 1.5px var(--ink); }
-.cat.dim { opacity: .45; }
-.dot { width: 10px; height: 10px; border-radius: 3px; }
-.cat .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cat .pct { color: var(--muted); text-align: right; }
-.delta { font-size: 11px; text-align: right; }
-.up { color: var(--bad); } .down { color: var(--good); }
+/* comparison table */
+table.cmp { border-collapse: separate; border-spacing: 0; width: 100%; }
+.cmp th, .cmp td { padding: 7px 12px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.cmp th:first-child, .cmp td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); z-index: 1; min-width: 170px; }
+.cmp thead th { border-bottom: 2px solid var(--line); vertical-align: bottom; }
+.cmp .mhead { display: flex; justify-content: flex-end; align-items: center; gap: 2px; }
+.cmp td.m { min-width: 150px; }
+.cmp tr.kpi td { font-weight: 600; }
+.cmp tr.kpi td:first-child { font-weight: 500; color: var(--muted); }
+.cmp tr.gap td { border-bottom: 2px solid var(--line); padding: 2px; }
+.cmp tr.cat { cursor: pointer; }
+.cmp tr.cat:hover td { background: var(--hover); }
+.cmp tr.cat.sel td { background: var(--hover); }
+.cmp tr.cat.sel td:first-child { box-shadow: inset 3px 0 0 var(--ink); font-weight: 600; }
+.cmp .pct { color: var(--muted); font-size: 12px; display: inline-block; width: 36px; }
+.cmp .bar { height: 4px; background: var(--track); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.cmp .bar i { display: block; height: 100%; border-radius: 2px; }
+.cmp .none { color: var(--line); }
+.cmp td.donut { padding: 4px 12px 8px; }
+.cmp td.donut svg { width: 96px; height: 96px; display: inline-block; }
+.cmp td.donut path { stroke: var(--panel); stroke-width: 1.5; }
 
 /* transactions */
+.cols { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(300px, 1fr); gap: 16px; overflow-x: auto; margin-top: 8px; }
 .tx { width: 100%; border-collapse: collapse; }
 .tx td { padding: 6px 4px; border-top: 1px solid var(--line); vertical-align: top; }
 .tx td.amt { text-align: right; white-space: nowrap; }
-.tx td.date { color: var(--muted); white-space: nowrap; width: 84px; }
-.tx .note { color: var(--muted); font-size: 12px; }
-.tx .tag { font-size: 11px; color: var(--muted); }
+.tx td.date { color: var(--muted); white-space: nowrap; width: 48px; }
+.tx .note, .tx .tag { color: var(--muted); font-size: 12px; }
 .refund { color: var(--good); }
-.empty { color: var(--muted); padding: 16px 4px; }
-#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px;
-  padding: 6px 8px; border-radius: 6px; opacity: 0; transition: opacity .08s; z-index: 10; white-space: nowrap; }
+.empty { color: var(--muted); padding: 12px 4px; }
+
+/* budget */
+.controls { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
+.controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.controls input[type=number] { width: 120px; }
+.stack { display: grid; grid-template-columns: 64px 1fr; gap: 8px 12px; align-items: center; margin-top: 12px; }
+.stackbar { position: relative; height: 26px; border-radius: 6px; background: var(--track); display: flex; overflow: hidden; }
+.stackbar i { height: 100%; }
+.stackbar i + i { box-shadow: inset 1px 0 0 var(--panel); }
+.stackbar .save { background: repeating-linear-gradient(135deg, var(--good) 0 3px, transparent 3px 7px); opacity: .55; }
+table.goals { width: 100%; border-collapse: collapse; }
+.goals th { text-align: right; font-size: 12px; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 2px solid var(--line); white-space: nowrap; }
+.goals td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.goals th:first-child, .goals td:first-child { text-align: left; }
+.goals td.prog { width: 30%; min-width: 140px; }
+.goals tr.nogoal td { color: var(--muted); }
+.goals tr.total td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--line); }
+.goals .unit { width: 56px; }
+.track { position: relative; height: 10px; background: var(--track); border-radius: 5px; }
+.track .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+.track .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); border-radius: 1px; }
+#save-status { font-size: 12px; }
 </style>
 </head>
 <body>
@@ -95,32 +119,57 @@ button.chip:hover { color: var(--ink); background: var(--hover); }
       <div class="muted small" id="built"></div>
     </div>
     <div class="row">
-      <button class="chip" id="theme" title="Switch light / dark">Theme</button>
+      <div class="tabs" role="tablist">
+        <button data-view="compare" role="tab">Compare</button>
+        <button data-view="budget" role="tab">Budget</button>
+      </div>
+      <button class="btn" id="theme" title="Switch light / dark">Theme</button>
     </div>
   </header>
 
-  <div class="card" id="trend">
-    <div class="row between" style="margin-bottom:8px; flex-wrap:wrap">
-      <h2>Spending by month</h2>
-      <div class="legend-inline" id="trend-legend"></div>
+  <div id="view-compare">
+    <div class="card">
+      <div class="row between wrap" style="margin-bottom:6px">
+        <h2>Spending by month</h2>
+        <div class="legend-inline" id="trend-legend"></div>
+      </div>
+      <div class="muted small" style="margin-bottom:6px">Click a month to add it to the comparison (or take it out). Click a colored segment to pick that category too.</div>
+      <div id="trend-chart"></div>
     </div>
-    <div class="muted small" style="margin-bottom:6px">Click a bar to load that month on the left, Shift-click for the right. Click a colored segment to also pick that category.</div>
-    <div id="trend-chart"></div>
+
+    <section class="card">
+      <div class="row between wrap" style="margin-bottom:8px">
+        <h2>Compare months</h2>
+        <span class="muted small">Click a category to see its transactions</span>
+      </div>
+      <div class="scroll"><table class="cmp" id="cmp"></table></div>
+    </section>
+
+    <section class="card">
+      <div class="row between wrap" style="gap:12px">
+        <div class="row"><span class="dot" id="detail-dot"></span><h2 id="detail-title"></h2>
+          <button class="btn" id="clear" hidden>Show all categories</button></div>
+        <input type="search" id="q" placeholder="Filter transactions…" aria-label="Filter transactions">
+      </div>
+      <div class="cols" id="lists"></div>
+    </section>
   </div>
 
-  <section class="grid2">
-    <div class="card panel" data-side="0"></div>
-    <div class="card panel" data-side="1"></div>
-  </section>
-
-  <section class="card">
-    <div class="row between" style="flex-wrap:wrap; gap:12px">
-      <div class="row"><span class="dot" id="detail-dot"></span><h2 id="detail-title"></h2>
-        <button class="chip" id="clear" hidden>Show all categories</button></div>
-      <input type="search" id="q" placeholder="Filter transactions…" aria-label="Filter transactions">
+  <div id="view-budget" hidden>
+    <div class="card">
+      <div class="controls">
+        <label>Month<select id="b-month"></select></label>
+        <label>Planned monthly income<input type="number" id="b-income" min="0" step="any" placeholder="e.g. 4000"></label>
+        <div class="small muted" id="b-actual-income"></div>
+        <div style="flex:1"></div>
+        <div id="save-status" class="muted"></div>
+      </div>
+      <div class="stack" id="b-stack"></div>
     </div>
-    <div class="grid2" style="margin-top:8px" id="lists"></div>
-  </section>
+    <section class="card scroll">
+      <table class="goals" id="b-table"></table>
+    </section>
+  </div>
 </main>
 <div id="tip"></div>
 
@@ -131,81 +180,91 @@ const ALL = "All time";
 
 const spend = DATA.txns.filter(t => t.kind === "spending");
 const months = [...new Set(DATA.txns.map(t => t.m))].sort().reverse();
-// Categories ranked by all-time spending, so colors stay put everywhere.
+// Categories ranked by all-time spending, so each keeps its color everywhere.
 const catTotals = sumBy(spend, t => t.cat, t => -t.amt);
 const cats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
 const color = c => { const i = cats.indexOf(c); return i >= 0 && i < PALETTE.length ? PALETTE[i] : "var(--gray)"; };
 
-const state = { months: [months[1] || months[0], months[0]], cat: null, q: "" };
+const state = { view: "compare", months: months.slice(0, 2).reverse(), cat: null, q: "", bMonth: months[0] };
+const goals = { income: DATA.goals.income || 0, goals: DATA.goals.goals.map(g => ({...g})) };
 
-function sumBy(rows, key, val) {
-  const o = {};
-  for (const r of rows) o[key(r)] = (o[key(r)] || 0) + val(r);
-  return o;
-}
+function sumBy(rows, key, val) { const o = {}; for (const r of rows) o[key(r)] = (o[key(r)] || 0) + val(r); return o; }
 const fmt0 = n => (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0});
 const fmt2 = n => (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const inMonth = (t, m) => m === ALL || t.m === m;
 const monthName = m => m === ALL ? ALL : new Date(m + "-15").toLocaleDateString(undefined, {month: "short", year: "numeric"});
+const monthOpts = sel => [ALL, ...months].map(x => `<option value="${x}" ${x === sel ? "selected" : ""}>${monthName(x)}</option>`).join("");
+
+function monthStats(m) {
+  const rows = DATA.txns.filter(t => inMonth(t, m));
+  const inc = rows.filter(t => t.kind === "income").reduce((s, t) => s + t.amt, 0);
+  const byCat = sumBy(rows.filter(t => t.kind === "spending"), t => t.cat, t => -t.amt);
+  const spent = Object.values(byCat).reduce((a, b) => a + b, 0);
+  return { inc, spent, byCat };
+}
 
 const tip = document.getElementById("tip");
 function showTip(e, html) { tip.innerHTML = html; tip.style.opacity = 1;
   tip.style.left = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8) + "px"; tip.style.top = (e.clientY + 14) + "px"; }
 function hideTip() { tip.style.opacity = 0; }
+function tipOn(el, html) { el.addEventListener("mousemove", e => showTip(e, html)); el.addEventListener("mouseleave", hideTip); }
 
-function pickCat(c) { state.cat = state.cat === c ? null : c; render(); }
-function pickMonth(side, m) { state.months[side] = m; render(); }
+function pickCat(c) { state.cat = state.cat === c ? null : c; renderCompare(); }
+function toggleMonth(m) {
+  const i = state.months.indexOf(m);
+  if (i >= 0 && state.months.length > 1) state.months.splice(i, 1);
+  else if (i < 0) state.months.push(m);
+}
 
 // ---------- trend ----------
 function renderTrend() {
+  const el = document.getElementById("trend-chart");
   const ms = months.slice(0, 24).reverse();
   const top = cats.slice(0, 8);
-  const el = document.getElementById("trend-chart");
-  const W = Math.max(el.clientWidth, 320), H = 240, L = 52, B = 22, T = 8;
-  const perMonth = ms.map(m => sumBy(spend.filter(t => t.m === m), t => t.cat, t => -t.amt));
-  const income = ms.map(m => DATA.txns.filter(t => t.m === m && t.kind === "income").reduce((s, t) => s + t.amt, 0));
-  const totals = perMonth.map(o => Object.values(o).filter(v => v > 0).reduce((a, b) => a + b, 0));
-  const max = Math.max(...totals, ...income, 1);
+  const W = Math.max(el.clientWidth, 320), H = 230, L = 52, B = 22, T = 8;
+  const perMonth = ms.map(m => monthStats(m));
+  const max = Math.max(...perMonth.map(p => Math.max(p.spent, p.inc)), 1);
   const step = niceStep(max / 4), yMax = Math.ceil(max / step) * step;
   const y = v => T + (H - B - T) * (1 - v / yMax);
-  const bw = (W - L) / ms.length, pad = Math.min(bw * .22, 14);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending by month"><g class="axis">`;
+  const bw = (W - L) / ms.length, pad = Math.min(bw * .2, 14);
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending by month"><g class="axis">`;
   for (let v = 0; v <= yMax; v += step) s += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${fmt0(v)}</text>`;
   s += `</g>`;
   ms.forEach((m, i) => {
-    const x = L + i * bw + pad, w = bw - pad * 2;
+    const x = L + i * bw + pad, w = bw - pad * 2, p = perMonth[i];
+    const sel = state.months.includes(m);
+    if (sel) s += `<rect x="${L + i * bw + 2}" y="${T - 4}" width="${bw - 4}" height="${H - T}" rx="6" fill="var(--hover)"/>`;
+    s += `<rect class="hit" x="${L + i * bw}" y="0" width="${bw}" height="${H}" fill="transparent" data-m="${m}"/>`;
     let acc = 0;
-    const parts = top.map(c => [c, Math.max(perMonth[i][c] || 0, 0)]);
-    const other = totals[i] - parts.reduce((a, p) => a + p[1], 0);
-    parts.push(["Everything else", other]);
+    const positive = Object.values(p.byCat).filter(v => v > 0).reduce((a, b) => a + b, 0);
+    const parts = top.map(c => [c, Math.max(p.byCat[c] || 0, 0)]);
+    parts.push(["Everything else", positive - parts.reduce((a, q) => a + q[1], 0)]);
     for (const [c, v] of parts) {
       if (v <= 0) continue;
-      const y0 = y(acc + v), h = y(acc) - y0; acc += v;
+      const y0 = y(acc + v); const h = y(acc) - y0; acc += v;
       const fill = c === "Everything else" ? "var(--gray)" : color(c);
-      const dim = state.cat && state.cat !== c ? .22 : 1;
-      s += `<rect class="seg" x="${x}" y="${y0}" width="${w}" height="${Math.max(h, 0)}" fill="${fill}" opacity="${dim}"
-        data-m="${m}" data-c="${esc(c)}" data-v="${v}" data-t="${totals[i]}"/>`;
+      const op = state.cat && state.cat !== c ? .2 : 1;
+      s += `<rect class="seg" x="${x}" y="${y0}" width="${w}" height="${Math.max(h, 0)}" fill="${fill}" opacity="${op}" data-m="${m}" data-c="${esc(c)}" data-v="${v}" data-t="${positive}"/>`;
     }
-    const sel = state.months.includes(m);
-    s += `<text class="axis mlabel ${sel ? "sel" : ""}" x="${x + w / 2}" y="${H - 6}" text-anchor="middle" data-m="${m}"
-      style="fill:${sel ? "var(--ink)" : "var(--muted)"}">${m.slice(2).replace("-", "/")}</text>`;
-    s += `<line x1="${x - 2}" x2="${x + w + 2}" y1="${y(income[i])}" y2="${y(income[i])}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"
-      data-m="${m}" data-inc="${income[i]}" class="inc"/>`;
+    s += `<line x1="${x - 2}" x2="${x + w + 2}" y1="${y(p.inc)}" y2="${y(p.inc)}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" pointer-events="none"/>`;
+    s += `<text class="axis" x="${x + w / 2}" y="${H - 6}" text-anchor="middle" style="fill:${sel ? "var(--ink)" : "var(--muted)"};font-weight:${sel ? 600 : 400}" pointer-events="none">${m.slice(2).replace("-", "/")}</text>`;
   });
-  s += `</svg>`;
-  el.innerHTML = s;
-  el.querySelectorAll(".seg, .mlabel, .inc").forEach(r => {
-    r.addEventListener("click", e => {
-      const side = e.shiftKey ? 1 : 0;
-      state.months[side] = r.dataset.m;
-      if (r.dataset.c && r.dataset.c !== "Everything else") state.cat = r.dataset.c;
-      render();
+  el.innerHTML = s + `</svg>`;
+  el.querySelectorAll(".seg, .hit").forEach(r => {
+    r.addEventListener("click", () => {
+      const c = r.dataset.c;
+      if (c && c !== "Everything else") {
+        // Picking a segment adds its month (never removes it) and selects the category.
+        if (!state.months.includes(r.dataset.m)) state.months.push(r.dataset.m);
+        state.cat = c;
+      } else toggleMonth(r.dataset.m);
+      renderCompare();
     });
     r.addEventListener("mousemove", e => {
-      if (r.dataset.inc) return showTip(e, `${monthName(r.dataset.m)} · income ${fmt0(+r.dataset.inc)}`);
-      if (!r.dataset.c) return;
-      showTip(e, `<b>${esc(r.dataset.c)}</b> · ${monthName(r.dataset.m)}<br>${fmt0(+r.dataset.v)} · ${Math.round(100 * r.dataset.v / r.dataset.t)}% of ${fmt0(+r.dataset.t)}`);
+      const p = perMonth[ms.indexOf(r.dataset.m)];
+      const head = `<b>${monthName(r.dataset.m)}</b> · spent ${fmt0(p.spent)} · income ${fmt0(p.inc)}`;
+      showTip(e, r.dataset.c ? `${head}<br>${esc(r.dataset.c)}: ${fmt0(+r.dataset.v)} (${Math.round(100 * r.dataset.v / r.dataset.t)}%)` : head);
     });
     r.addEventListener("mouseleave", hideTip);
   });
@@ -215,83 +274,78 @@ function renderTrend() {
 }
 function niceStep(x) { const p = 10 ** Math.floor(Math.log10(x)); return [1, 2, 2.5, 5, 10].map(k => k * p).find(k => k >= x); }
 
-// ---------- month panels ----------
-function monthStats(m) {
-  const rows = DATA.txns.filter(t => inMonth(t, m));
-  const inc = rows.filter(t => t.kind === "income").reduce((s, t) => s + t.amt, 0);
-  const byCat = sumBy(rows.filter(t => t.kind === "spending"), t => t.cat, t => -t.amt);
-  const spent = Object.values(byCat).reduce((a, b) => a + b, 0);
-  return { inc, spent, byCat };
-}
-
-function renderPanel(side) {
-  const el = document.querySelector(`.panel[data-side="${side}"]`);
-  const m = state.months[side], other = state.months[1 - side];
-  const st = monthStats(m), ot = monthStats(other);
-  const list = Object.entries(st.byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-  const pos = list.reduce((s, [, v]) => s + v, 0);
-  const net = st.inc - st.spent;
-  const opts = [ALL, ...months].map(x => `<option value="${x}" ${x === m ? "selected" : ""}>${monthName(x)}</option>`).join("");
-  let h = `<div class="row between"><select aria-label="Month">${opts}</select>
-    <span class="muted small">vs ${monthName(other)}</span></div>
-    <div class="kpis"><div class="kpi"><span class="muted small">Income</span><b>${fmt0(st.inc)}</b></div>
-    <div class="kpi"><span class="muted small">Spent</span><b>${fmt0(st.spent)}</b></div>
-    <div class="kpi"><span class="muted small">${net >= 0 ? "Saved" : "Overspent"}</span><b class="${net >= 0 ? "down" : "up"}">${fmt0(Math.abs(net))}</b></div></div>
-    <div class="body"><div class="donut">${donut(list, pos)}</div><div class="cats">`;
-  for (const [c, v] of list) {
-    const d = v - (ot.byCat[c] || 0);
-    const cls = state.cat === c ? "sel" : state.cat ? "dim" : "";
-    const dtxt = Math.abs(d) < 1 ? "" : `<span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${fmt0(Math.abs(d)).replace("−", "")}</span>`;
-    h += `<button class="cat ${cls}" data-c="${esc(c)}"><span class="dot" style="background:${color(c)}"></span>
-      <span class="name">${esc(c)}</span><span>${fmt0(v)}</span><span class="pct">${Math.round(100 * v / pos)}%</span>${dtxt || "<span></span>"}</button>`;
+// ---------- comparison table ----------
+function renderTable() {
+  const ms = state.months, stats = ms.map(monthStats);
+  // One row per category, ordered by its total across the months being compared.
+  const tot = {};
+  stats.forEach(s => Object.entries(s.byCat).forEach(([c, v]) => tot[c] = (tot[c] || 0) + v));
+  const rows = Object.keys(tot).filter(c => stats.some(s => Math.abs(s.byCat[c] || 0) >= .005)).sort((a, b) => tot[b] - tot[a]);
+  const spare = months.find(m => !ms.includes(m));
+  let h = `<thead><tr><th>Category</th>` + ms.map((m, i) => `<th><div class="mhead"><select data-i="${i}" aria-label="Month">${monthOpts(m)}</select>
+      ${ms.length > 1 ? `<button class="x" data-rm="${i}" title="Remove this month" aria-label="Remove ${monthName(m)}">×</button>` : ""}</div></th>`).join("")
+    + `<th style="width:1%"><button class="btn" id="add-month" ${spare ? "" : "disabled"}>+ Add month</button></th></tr></thead><tbody>`;
+  h += `<tr><td></td>` + stats.map(s => `<td class="donut">${donut(s.byCat)}</td>`).join("") + `<td></td></tr>`;
+  h += `<tr class="kpi"><td>Income</td>` + stats.map(s => `<td>${fmt0(s.inc)}</td>`).join("") + `<td></td></tr>`;
+  h += `<tr class="kpi"><td>Spent</td>` + stats.map(s => `<td>${fmt0(s.spent)}</td>`).join("") + `<td></td></tr>`;
+  h += `<tr class="kpi"><td>Saved</td>` + stats.map(s => { const n = s.inc - s.spent;
+      return `<td class="${n >= 0 ? "good" : "bad"}">${n >= 0 ? "" : "Overspent "}${fmt0(Math.abs(n))}</td>`; }).join("") + `<td></td></tr>`;
+  h += `<tr class="gap"><td></td>${ms.map(() => "<td></td>").join("")}<td></td></tr>`;
+  for (const c of rows) {
+    h += `<tr class="cat ${state.cat === c ? "sel" : ""}" data-c="${esc(c)}"><td><span class="row"><span class="dot" style="background:${color(c)}"></span>${esc(c)}</span></td>`;
+    h += stats.map(s => {
+      const v = s.byCat[c] || 0;
+      if (Math.abs(v) < .005) return `<td class="m"><span class="none">—</span></td>`;
+      const pct = s.spent > 0 ? 100 * v / s.spent : 0;
+      return `<td class="m">${fmt0(v)} <span class="pct">${Math.round(pct)}%</span><div class="bar"><i style="width:${Math.max(Math.min(pct, 100), 0)}%;background:${color(c)}"></i></div></td>`;
+    }).join("") + `<td></td></tr>`;
   }
-  if (!list.length) h += `<div class="empty">No spending this month.</div>`;
-  h += `</div></div>`;
-  el.innerHTML = h;
-  el.querySelector("select").addEventListener("change", e => pickMonth(side, e.target.value));
-  el.querySelectorAll("[data-c]").forEach(b => b.addEventListener("click", () => pickCat(b.dataset.c)));
+  const el = document.getElementById("cmp");
+  el.innerHTML = h + `</tbody>`;
+  el.querySelectorAll("select[data-i]").forEach(s => s.addEventListener("change", () => { state.months[+s.dataset.i] = s.value; renderCompare(); }));
+  el.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => { state.months.splice(+b.dataset.rm, 1); renderCompare(); }));
+  el.querySelector("#add-month").addEventListener("click", () => { if (spare) { state.months.push(spare); renderCompare(); } });
+  el.querySelectorAll("tr.cat").forEach(r => r.addEventListener("click", () => pickCat(r.dataset.c)));
   el.querySelectorAll("path[data-c]").forEach(p => {
-    p.addEventListener("mousemove", e => showTip(e, `<b>${esc(p.dataset.c)}</b><br>${fmt0(+p.dataset.v)} · ${Math.round(100 * p.dataset.v / pos)}%`));
-    p.addEventListener("mouseleave", hideTip);
+    p.addEventListener("click", () => pickCat(p.dataset.c));
+    tipOn(p, `<b>${esc(p.dataset.c)}</b> · ${fmt0(+p.dataset.v)} (${p.dataset.p}%)`);
   });
 }
 
-function donut(list, total) {
+function donut(byCat) {
+  const list = Object.entries(byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const total = list.reduce((s, [, v]) => s + v, 0);
   if (!total) return "";
-  const R = 90, r = 56, C = 100;
-  let a = -Math.PI / 2, s = `<svg viewBox="0 0 200 200" role="img" aria-label="Share of spending">`;
+  const R = 46, r = 28, C = 48;
+  let a = -Math.PI / 2, s = `<svg viewBox="0 0 96 96" role="img" aria-label="Share of spending">`;
   for (const [c, v] of list) {
-    const da = 2 * Math.PI * v / total, b = a + Math.min(da, 2 * Math.PI - 1e-4);
-    const big = da > Math.PI ? 1 : 0;
-    const p = (rad, ang) => `${C + rad * Math.cos(ang)} ${C + rad * Math.sin(ang)}`;
-    const op = state.cat && state.cat !== c ? .25 : 1;
-    s += `<path d="M ${p(R, a)} A ${R} ${R} 0 ${big} 1 ${p(R, b)} L ${p(r, b)} A ${r} ${r} 0 ${big} 0 ${p(r, a)} Z"
-      fill="${color(c)}" opacity="${op}" data-c="${esc(c)}" data-v="${v}"/>`;
+    const da = 2 * Math.PI * v / total, b = a + Math.min(da, 2 * Math.PI - 1e-4), big = da > Math.PI ? 1 : 0;
+    const p = (rad, ang) => `${(C + rad * Math.cos(ang)).toFixed(2)} ${(C + rad * Math.sin(ang)).toFixed(2)}`;
+    s += `<path d="M ${p(R, a)} A ${R} ${R} 0 ${big} 1 ${p(R, b)} L ${p(r, b)} A ${r} ${r} 0 ${big} 0 ${p(r, a)} Z" style="cursor:pointer"
+      fill="${color(c)}" opacity="${state.cat && state.cat !== c ? .2 : 1}" data-c="${esc(c)}" data-v="${v}" data-p="${Math.round(100 * v / total)}"/>`;
     a += da;
   }
   const sel = state.cat && list.find(([c]) => c === state.cat);
-  const [big, small] = sel ? [`${Math.round(100 * sel[1] / total)}%`, esc(state.cat)] : [fmt0(total), "spent"];
-  s += `<text x="100" y="100" text-anchor="middle" font-size="22" font-weight="600" fill="var(--ink)">${big}</text>
-    <text x="100" y="120" text-anchor="middle" font-size="11" fill="var(--muted)">${small}</text></svg>`;
-  return s;
+  if (sel) s += `<text x="48" y="53" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">${Math.round(100 * sel[1] / total)}%</text>`;
+  return s + `</svg>`;
 }
 
 // ---------- transaction lists ----------
 function renderLists() {
   const c = state.cat, q = state.q.toLowerCase();
-  document.getElementById("detail-title").textContent = c ? c : "All spending";
+  document.getElementById("detail-title").textContent = c ? `${c} transactions` : "All spending transactions";
   document.getElementById("detail-dot").style.background = c ? color(c) : "transparent";
   document.getElementById("clear").hidden = !c;
   document.getElementById("lists").innerHTML = state.months.map(m => {
     const rows = spend.filter(t => inMonth(t, m) && (!c || t.cat === c) &&
       (!q || `${t.desc} ${t.note} ${t.cat}`.toLowerCase().includes(q))).sort((a, b) => a.amt - b.amt);
     const total = rows.reduce((s, t) => s - t.amt, 0);
-    let h = `<div><div class="row between" style="margin:6px 0"><b>${monthName(m)}</b><span>${rows.length} · <b>${fmt2(total)}</b></span></div>`;
+    let h = `<div><div class="row between" style="margin:6px 0"><b>${monthName(m)}</b><span class="muted">${rows.length} · <b style="color:var(--ink)">${fmt2(total)}</b></span></div>`;
     if (!rows.length) return h + `<div class="empty">Nothing here.</div></div>`;
     h += `<table class="tx"><tbody>`;
     for (const t of rows.slice(0, 300)) {
       const v = -t.amt;
-      h += `<tr><td class="date">${t.d.slice(5)}</td><td>${esc(t.desc)}${c ? "" : ` <span class="tag">· ${esc(t.cat)}</span>`}
+      h += `<tr><td class="date">${m === ALL ? t.d.slice(2) : t.d.slice(5)}</td><td>${esc(t.desc)}${c ? "" : ` <span class="tag">· ${esc(t.cat)}</span>`}
         ${t.note ? `<div class="note">${esc(t.note)}</div>` : ""}</td><td class="amt ${v < 0 ? "refund" : ""}">${fmt2(v)}</td></tr>`;
     }
     if (rows.length > 300) h += `<tr><td colspan="3" class="empty">…and ${rows.length - 300} more. Narrow it with the filter.</td></tr>`;
@@ -299,22 +353,154 @@ function renderLists() {
   }).join("");
 }
 
-function render() { renderTrend(); renderPanel(0); renderPanel(1); renderLists(); }
+function renderCompare() {
+  // Columns always run oldest → newest ("All time" sorts last), with no repeats.
+  state.months = [...new Set(state.months)].sort();
+  renderTrend(); renderTable(); renderLists();
+}
 
-document.getElementById("built").textContent = `${spend.length.toLocaleString()} spending transactions · built ${DATA.built} · rerun "tracker.py dashboard" to refresh`;
+// ---------- budget ----------
+const goalDollars = g => g.unit === "$" ? g.value : goals.income * g.value / 100;
+const find = c => goals.goals.find(g => g.cat === c);
+
+function renderBudget() {
+  const m = state.bMonth, st = monthStats(m);
+  const nMonths = m === ALL ? months.length : 1;  // All time compares against goals x number of months
+  const inc = goals.income * nMonths;
+  document.getElementById("b-month").innerHTML = monthOpts(m);
+  const incEl = document.getElementById("b-income");
+  if (document.activeElement !== incEl) incEl.value = goals.income || "";
+  document.getElementById("b-actual-income").innerHTML =
+    `Actual income ${m === ALL ? "all time" : "in " + monthName(m)}: <b style="color:var(--ink)">${fmt0(st.inc)}</b>` +
+    (m !== ALL && st.inc > 0 ? ` <button class="btn" id="use-actual" style="margin-left:6px">Use as planned income</button>` : "");
+  const useBtn = document.getElementById("use-actual");
+  if (useBtn) useBtn.addEventListener("click", () => { goals.income = Math.round(st.inc); changed(); });
+
+  const rows = goals.goals.map(g => ({ g, goal: goalDollars(g) * nMonths, spent: st.byCat[g.cat] || 0 }));
+  rows.sort((a, b) => b.goal - a.goal);
+  const goalCats = new Set(goals.goals.map(g => g.cat));
+  const unbudgeted = Object.entries(st.byCat).filter(([c, v]) => !goalCats.has(c) && Math.abs(v) >= .005).sort((a, b) => b[1] - a[1]);
+  const goalTotal = rows.reduce((s, r) => s + r.goal, 0);
+  const spentGoal = rows.reduce((s, r) => s + r.spent, 0);
+  const otherSpent = unbudgeted.reduce((s, [, v]) => s + v, 0);
+
+  // Plan vs actual: how the planned income was meant to be split, next to where it went.
+  const scale = Math.max(inc, goalTotal, st.spent, 1);
+  const seg = (v, fill, label, cls = "") => v > 0 ? `<i class="${cls}" style="width:${100 * v / scale}%;${fill ? `background:${fill}` : ""}" data-tip="${esc(label)}: ${fmt0(v)}"></i>` : "";
+  const plan = rows.map(r => seg(r.goal, color(r.g.cat), r.g.cat)).join("") + seg(inc - goalTotal, "", "Planned savings", "save");
+  const actual = rows.map(r => seg(Math.max(r.spent, 0), color(r.g.cat), r.g.cat)).join("")
+    + seg(Math.max(otherSpent, 0), "var(--gray)", "No goal set") + seg(inc - st.spent, "", "Saved", "save");
+  document.getElementById("b-stack").innerHTML = inc > 0 || goalTotal > 0 ?
+    `<span class="small muted">Plan</span><div class="stackbar">${plan}</div>
+     <span class="small muted">Actual</span><div class="stackbar">${actual}</div>
+     <span></span><div class="small muted">Full bar = ${fmt0(scale)}. Hatched = savings. ${st.spent > inc && inc > 0 ? `<span class="bad">Spent ${fmt0(st.spent - inc)} more than planned income.</span>` : ""}</div>` :
+    `<span></span><div class="muted small">Enter your planned monthly income, then add goals below.</div>`;
+  document.querySelectorAll("#b-stack [data-tip]").forEach(el => tipOn(el, el.dataset.tip));
+
+  let h = `<thead><tr><th>Category</th><th>Goal</th><th></th><th>Goal $</th><th>Spent</th><th>Progress</th><th>Left / over</th><th></th></tr></thead><tbody>`;
+  for (const r of rows) {
+    const left = r.goal - r.spent, over = left < 0;
+    const sc = Math.max(r.goal, r.spent, 1);
+    const alt = r.g.unit === "%" ? fmt0(goalDollars(r.g)) : (goals.income ? `${Math.round(100 * r.g.value / goals.income)}%` : "");
+    h += `<tr><td><span class="row"><span class="dot" style="background:${color(r.g.cat)}"></span>${esc(r.g.cat)}</span></td>
+      <td><input type="number" min="0" step="any" value="${r.g.value}" data-goal="${esc(r.g.cat)}" aria-label="Goal for ${esc(r.g.cat)}"></td>
+      <td><select class="unit" data-unit="${esc(r.g.cat)}" aria-label="Unit"><option value="%" ${r.g.unit === "%" ? "selected" : ""}>%</option><option value="$" ${r.g.unit === "$" ? "selected" : ""}>$</option></select>
+        <div class="small muted">${alt ? "= " + alt : ""}</div></td>
+      <td>${fmt0(r.goal)}</td><td>${fmt0(r.spent)}</td>
+      <td class="prog"><div class="track"><div class="fill" style="width:${100 * Math.max(r.spent, 0) / sc}%;background:${over ? "var(--bad)" : "var(--good)"}"></div>
+        <div class="mark" style="left:calc(${100 * r.goal / sc}% - 1px)"></div></div></td>
+      <td class="${over ? "bad" : "good"}">${over ? fmt0(-left) + " over" : fmt0(left) + " left"}</td>
+      <td><button class="x" data-del="${esc(r.g.cat)}" title="Remove goal" aria-label="Remove goal for ${esc(r.g.cat)}">×</button></td></tr>`;
+  }
+  const free = cats.filter(c => !goalCats.has(c));
+  h += `<tr><td colspan="8"><div class="row wrap"><select id="new-cat" aria-label="Category">${free.map(c => `<option>${esc(c)}</option>`).join("")}</select>
+      <input type="number" id="new-val" min="0" step="any" placeholder="30" aria-label="New goal">
+      <select id="new-unit" aria-label="Unit"><option value="%">% of income</option><option value="$">$ per month</option></select>
+      <button class="btn" id="add-goal" ${free.length ? "" : "disabled"}>Add goal</button></div></td></tr>`;
+  for (const [c, v] of unbudgeted) {
+    h += `<tr class="nogoal"><td><span class="row"><span class="dot" style="background:${color(c)}"></span>${esc(c)}</span></td><td colspan="3">no goal</td>
+      <td>${fmt0(v)}</td><td></td><td></td><td><button class="btn" data-quick="${esc(c)}" data-v="${v / nMonths}" title="Set a goal at this month's amount">+ Goal</button></td></tr>`;
+  }
+  const saved = inc - st.spent;
+  h += `<tr class="total"><td>Total</td><td colspan="2" class="small muted">${inc > 0 ? `${Math.round(100 * goalTotal / inc)}% of income planned` : ""}</td>
+    <td>${fmt0(goalTotal)}</td><td>${fmt0(st.spent)}</td><td></td>
+    <td class="${saved >= 0 ? "good" : "bad"}">${inc > 0 ? (saved >= 0 ? `${fmt0(saved)} saved` : `${fmt0(-saved)} overspent`) : ""}</td><td></td></tr>`;
+  if (inc > 0) h += `<tr><td colspan="8" class="small muted" style="text-align:left;white-space:normal">Planned savings: ${fmt0(inc - goalTotal)} (${Math.round(100 * (inc - goalTotal) / inc)}% of planned income).
+    Goal categories used ${fmt0(spentGoal)} of ${fmt0(goalTotal)}; categories without a goal took ${fmt0(otherSpent)}.</td></tr>`;
+  const el = document.getElementById("b-table");
+  el.innerHTML = h + `</tbody>`;
+
+  el.querySelectorAll("[data-goal]").forEach(i => i.addEventListener("change", () => { find(i.dataset.goal).value = Math.max(+i.value || 0, 0); changed(); }));
+  el.querySelectorAll("[data-unit]").forEach(s => s.addEventListener("change", () => {
+    // Keep the same dollar amount when switching between % and $.
+    const g = find(s.dataset.unit), d = goalDollars(g);
+    g.unit = s.value;
+    g.value = g.unit === "$" ? Math.round(d) : (goals.income ? Math.round(1000 * d / goals.income) / 10 : g.value);
+    changed();
+  }));
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { goals.goals = goals.goals.filter(g => g.cat !== b.dataset.del); changed(); }));
+  el.querySelectorAll("[data-quick]").forEach(b => b.addEventListener("click", () => {
+    const v = +b.dataset.v;
+    goals.goals.push(goals.income ? { cat: b.dataset.quick, value: Math.round(1000 * v / goals.income) / 10, unit: "%" } : { cat: b.dataset.quick, value: Math.round(v), unit: "$" });
+    changed();
+  }));
+  el.querySelector("#add-goal").addEventListener("click", () => {
+    const c = el.querySelector("#new-cat").value, v = +el.querySelector("#new-val").value;
+    if (!c || !(v > 0)) return el.querySelector("#new-val").focus();
+    goals.goals.push({ cat: c, value: v, unit: el.querySelector("#new-unit").value });
+    changed();
+  });
+}
+
+let saveTimer;
+function changed() {
+  renderBudget();
+  const status = document.getElementById("save-status");
+  if (!DATA.token) { status.textContent = "Static page: changes aren't saved. Run tracker.py dashboard to edit goals."; return; }
+  status.textContent = "Saving…"; status.className = "muted";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      const r = await fetch("/api/goals", { method: "POST", headers: { "Content-Type": "application/json", "X-Token": DATA.token }, body: JSON.stringify(goals) });
+      status.textContent = r.ok ? "Saved to your Sheet" : "Couldn't save (" + r.status + ")";
+      status.className = r.ok ? "muted" : "bad";
+    } catch (e) { status.textContent = "Couldn't save: is tracker.py dashboard still running?"; status.className = "bad"; }
+  }, 500);
+}
+
+// ---------- wiring ----------
+function setView(v) {
+  state.view = v;
+  document.querySelectorAll(".tabs button").forEach(b => { b.classList.toggle("on", b.dataset.view === v); b.setAttribute("aria-selected", b.dataset.view === v); });
+  document.getElementById("view-compare").hidden = v !== "compare";
+  document.getElementById("view-budget").hidden = v !== "budget";
+  try { localStorage.setItem("view", v); } catch (e) {}
+  v === "compare" ? renderCompare() : renderBudget();
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+document.getElementById("built").textContent = `${spend.length.toLocaleString()} spending transactions · loaded ${DATA.built}` +
+  (DATA.token ? " · reload for fresh data" : " · rerun tracker.py dashboard to refresh");
 document.getElementById("clear").addEventListener("click", () => pickCat(state.cat));
 document.getElementById("q").addEventListener("input", e => { state.q = e.target.value; renderLists(); });
+document.getElementById("b-month").addEventListener("change", e => { state.bMonth = e.target.value; renderBudget(); });
+document.getElementById("b-income").addEventListener("change", e => { goals.income = Math.max(+e.target.value || 0, 0); changed(); });
 document.getElementById("theme").addEventListener("click", () => {
   const dark = matchMedia("(prefers-color-scheme: dark)").matches;
   const cur = document.documentElement.dataset.theme || (dark ? "dark" : "light");
   document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
   try { localStorage.setItem("theme", document.documentElement.dataset.theme); } catch (e) {}
-  render();
+  setView(state.view);
 });
 try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
-render();
-let resizeTimer;
-addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderTrend, 100); });
+let startView = "compare";
+try { startView = localStorage.getItem("view") || "compare"; } catch (e) {}
+setView(startView === "budget" ? "budget" : "compare");
+// Redraw the bars whenever their box changes width (first layout, window resizes).
+let lastW = 0;
+new ResizeObserver(([e]) => {
+  const w = Math.round(e.contentRect.width);
+  if (w && w !== lastW && state.view === "compare") { lastW = w; renderTrend(); }
+}).observe(document.getElementById("trend-chart"));
 </script>
 </body>
 </html>
