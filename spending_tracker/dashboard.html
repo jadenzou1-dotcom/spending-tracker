@@ -114,6 +114,27 @@ table.goals { width: 100%; border-collapse: collapse; }
 .track .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
 .track .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); border-radius: 1px; }
 #save-status { font-size: 12px; }
+.goals .mob { display: none; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.goals .mob .track { margin: 6px 0 4px; height: 8px; }
+@media (max-width: 600px) {
+  main { padding: 16px 12px 48px; }
+  .card { padding: 12px; }
+  .cmp th, .cmp td { padding: 6px 8px; }
+  .cmp th:first-child, .cmp td:first-child { min-width: 118px; max-width: 150px; white-space: normal; }
+  .cmp td.m { min-width: 104px; }
+  .cmp td.donut svg { width: 72px; height: 72px; }
+  .cmp select { max-width: 110px; }
+  .goals td, .goals th { padding: 6px 5px; }
+  .goals input[type=number] { width: 58px; }
+  /* Phones: spent / goal / bar move under the group name; the wide columns hide. */
+  .goals tr > :nth-child(n+3):nth-child(-n+6) { display: none; }
+  .goals td:first-child { white-space: normal; }
+  .goals .mob { display: block; }
+  .goals .gname .small { display: none; }
+  .goals tr.sub select { max-width: 96px; }
+  .goals tr > :nth-child(7) { white-space: normal; min-width: 64px; }
+  .goals tr > :nth-child(8) { display: none; }
+}
 </style>
 </head>
 <body>
@@ -225,14 +246,15 @@ function toggleMonth(m) {
 // ---------- trend ----------
 function renderTrend() {
   const el = document.getElementById("trend-chart");
-  const ms = months.slice(0, 24).reverse();
+  const W = Math.max(el.clientWidth, 300), H = 230, L = 52, B = 22, T = 8;
+  const ms = months.slice(0, W < 600 ? 12 : 24).reverse();  // phones: last 12 months
   const top = cats.slice(0, 8);
-  const W = Math.max(el.clientWidth, 320), H = 230, L = 52, B = 22, T = 8;
   const perMonth = ms.map(m => monthStats(m));
   const max = Math.max(...perMonth.map(p => Math.max(p.spent, p.inc)), 1);
   const step = niceStep(max / 4), yMax = Math.ceil(max / step) * step;
   const y = v => T + (H - B - T) * (1 - v / yMax);
   const bw = (W - L) / ms.length, pad = Math.min(bw * .2, 14);
+  const every = Math.ceil(38 / bw);  // label every nth month when bars are narrow (newest always labeled)
   let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending by month"><g class="axis">`;
   for (let v = 0; v <= yMax; v += step) s += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${fmt0(v)}</text>`;
   s += `</g>`;
@@ -253,7 +275,7 @@ function renderTrend() {
       s += `<rect class="seg" x="${x}" y="${y0}" width="${w}" height="${Math.max(h, 0)}" fill="${fill}" opacity="${op}" data-m="${m}" data-c="${esc(c)}" data-v="${v}" data-t="${positive}"/>`;
     }
     s += `<line x1="${x - 2}" x2="${x + w + 2}" y1="${y(p.inc)}" y2="${y(p.inc)}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" pointer-events="none"/>`;
-    s += `<text class="axis" x="${x + w / 2}" y="${H - 6}" text-anchor="middle" style="fill:${sel ? "var(--ink)" : "var(--muted)"};font-weight:${sel ? 600 : 400}" pointer-events="none">${m.slice(2).replace("-", "/")}</text>`;
+    if ((ms.length - 1 - i) % every === 0) s += `<text class="axis" x="${Math.min(x + w / 2, W - 16)}" y="${H - 6}" text-anchor="middle" style="fill:${sel ? "var(--ink)" : "var(--muted)"};font-weight:${sel ? 600 : 400}" pointer-events="none">${m.slice(2).replace("-", "/")}</text>`;
   });
   el.innerHTML = s + `</svg>`;
   el.querySelectorAll(".seg, .hit").forEach(r => {
@@ -422,8 +444,8 @@ function renderBudget() {
   const groupOpts = cur => goals.groups.map((g, i) => `<option value="${i}" ${i === cur ? "selected" : ""}>${esc(g.name)}</option>`).join("")
     + `<option value="" ${cur < 0 ? "selected" : ""}>(no group)</option>`;
   const catRows = (cats, gi) => Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) =>
-    `<tr class="sub"><td>${esc(c)}</td><td></td><td></td><td>${fmt0(v)}</td><td>${pctOf(v)}</td><td></td>
-      <td colspan="2"><select data-move="${esc(c)}" aria-label="Move ${esc(c)} to group">${groupOpts(gi)}</select></td></tr>`).join("");
+    `<tr class="sub"><td>${esc(c)}<div class="mob">${fmt0(v)} · ${pctOf(v)} of income</div></td><td></td><td></td><td>${fmt0(v)}</td><td>${pctOf(v)}</td><td></td>
+      <td><select data-move="${esc(c)}" aria-label="Move ${esc(c)} to group">${groupOpts(gi)}</select></td><td></td></tr>`).join("");
   const bar = (spent, goal, good) => { const sc = Math.max(goal, spent, 1);
     return `<div class="track"><div class="fill" style="width:${100 * Math.max(spent, 0) / sc}%;background:${good ? "var(--good)" : "var(--bad)"}"></div>
       <div class="mark" style="left:calc(${100 * goal / sc}% - 1px)"></div></div>`; };
@@ -434,7 +456,8 @@ function renderBudget() {
     const k = r.g.cats.filter(c => c !== "*").length;
     const n = `${k} ${k === 1 ? "category" : "categories"}${r.g.cats.includes("*") ? " + everything else" : ""}`;
     h += `<tr><td><span class="row gname" data-toggle="${esc(r.g.name)}"><button class="caret" aria-label="Show categories">${open ? "▾" : "▸"}</button>
-        <span class="dot" style="background:${gColor(r.i)}"></span>${esc(r.g.name)} <span class="small muted">${n}</span></span></td>
+        <span class="dot" style="background:${gColor(r.i)}"></span>${esc(r.g.name)} <span class="small muted">${n}</span></span>
+        <div class="mob">${bar(r.spent, goal, left >= 0)}${fmt0(r.spent)} of ${fmt0(goal)} · ${pctOf(r.spent)} of income</div></td>
       <td><input type="number" min="0" max="100" step="any" value="${r.g.pct}" data-pct="${r.i}" aria-label="Goal % for ${esc(r.g.name)}"></td>
       <td>${fmt0(goal)}</td><td>${fmt0(r.spent)}</td><td>${pctOf(r.spent)}</td>
       <td class="prog">${bar(r.spent, goal, left >= 0)}</td>
@@ -444,15 +467,16 @@ function renderBudget() {
   }
   if (Object.keys(loose.cats).length) {
     const open = expanded.has("");
-    h += `<tr><td><span class="row gname" data-toggle=""><button class="caret">${open ? "▾" : "▸"}</button><span class="dot" style="background:var(--gray)"></span>Not in any group</span></td>
+    h += `<tr><td><span class="row gname" data-toggle=""><button class="caret">${open ? "▾" : "▸"}</button><span class="dot" style="background:var(--gray)"></span>Not in any group</span><div class="mob">${fmt0(loose.spent)} spent</div></td>
       <td></td><td></td><td>${fmt0(loose.spent)}</td><td>${pctOf(loose.spent)}</td><td></td><td class="small muted">move these into a group</td><td></td></tr>`;
     if (open) h += catRows(loose.cats, -1);
   }
-  h += `<tr class="savings"><td><span class="row"><span class="caret"></span><span class="dot save" style="background:var(--good)"></span><b>Cash savings</b> <span class="small muted">what's left</span></span></td>
+  h += `<tr class="savings"><td><span class="row"><span class="caret"></span><span class="dot save" style="background:var(--good)"></span><b>Cash savings</b> <span class="small muted">what's left</span></span>
+    ${inc > 0 ? `<div class="mob">${bar(saved, saveGoal, saved >= saveGoal)}${fmt0(saved)} saved of ${fmt0(saveGoal)} · ${pctOf(saved)} of income</div>` : ""}</td>
     <td class="small muted">${Math.round(savePct * 10) / 10}%</td><td>${fmt0(saveGoal)}</td><td>${inc > 0 ? fmt0(saved) + " saved" : ""}</td><td>${pctOf(saved)}</td>
     <td class="prog">${inc > 0 ? bar(saved, saveGoal, saved >= saveGoal) : ""}</td>
     <td class="${saved >= saveGoal ? "good" : "bad"}">${inc > 0 ? (saved >= saveGoal ? fmt0(saved - saveGoal) + " ahead" : fmt0(saveGoal - saved) + " short") : ""}</td><td></td></tr>`;
-  h += `<tr class="total"><td>Total</td><td class="small muted">${Math.round(allocated * 10) / 10}% + ${Math.round(savePct * 10) / 10}%</td><td>${fmt0(inc)}</td><td>${fmt0(st.spent)}</td><td>${pctOf(st.spent)}</td><td></td>
+  h += `<tr class="total"><td>Total<div class="mob">${fmt0(st.spent)} spent of ${fmt0(inc)} · ${pctOf(st.spent)}</div></td><td class="small muted">${Math.round(allocated * 10) / 10}% + ${Math.round(savePct * 10) / 10}%</td><td>${fmt0(inc)}</td><td>${fmt0(st.spent)}</td><td>${pctOf(st.spent)}</td><td></td>
     <td class="small muted" style="white-space:normal">${allocated > 100 ? `<span class="bad">Groups add up to more than 100%.</span>` : ""}</td><td></td></tr>`;
   h += `<tr><td colspan="8"><div class="row wrap"><input id="new-name" placeholder="New group name" aria-label="New group name" style="width:180px">
       <input type="number" id="new-pct" min="0" max="100" step="any" placeholder="%" aria-label="Goal %">
@@ -482,14 +506,17 @@ let saveTimer;
 function changed() {
   renderBudget();
   const status = document.getElementById("save-status");
-  if (!DATA.token) { status.textContent = "Static page: changes aren't saved. Run tracker.py dashboard to edit goals."; return; }
+  const done = ok => { status.textContent = ok ? "Saved to your Sheet" : "Couldn't save. Reload and try again."; status.className = ok ? "muted" : "bad"; };
+  // Inside the Apps Script web app, save through the Sheet; locally, through tracker.py dashboard.
+  const viaSheet = DATA.remote === "apps_script" && window.google && google.script && google.script.run;
+  if (!viaSheet && !DATA.token) { status.textContent = "Static page: changes aren't saved. Run tracker.py dashboard to edit goals."; return; }
   status.textContent = "Saving…"; status.className = "muted";
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
+    if (viaSheet) return google.script.run.withSuccessHandler(() => done(true)).withFailureHandler(() => done(false)).saveGoals(goals);
     try {
       const r = await fetch("/api/goals", { method: "POST", headers: { "Content-Type": "application/json", "X-Token": DATA.token }, body: JSON.stringify(goals) });
-      status.textContent = r.ok ? "Saved to your Sheet" : "Couldn't save (" + r.status + ")";
-      status.className = r.ok ? "muted" : "bad";
+      done(r.ok);
     } catch (e) { status.textContent = "Couldn't save: is tracker.py dashboard still running?"; status.className = "bad"; }
   }, 500);
 }
@@ -505,7 +532,7 @@ function setView(v) {
 }
 document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
 document.getElementById("built").textContent = `${spend.length.toLocaleString()} spending transactions · loaded ${DATA.built}` +
-  (DATA.token ? " · reload for fresh data" : " · rerun tracker.py dashboard to refresh");
+  (DATA.token || DATA.remote ? " · reload for fresh data" : " · rerun tracker.py dashboard to refresh");
 document.getElementById("clear").addEventListener("click", () => pickCat(state.cat));
 document.getElementById("q").addEventListener("input", e => { state.q = e.target.value; renderLists(); });
 document.getElementById("b-month").addEventListener("change", e => { state.bMonth = e.target.value; renderBudget(); });

@@ -91,6 +91,24 @@ Instead of downloading CSVs, connect Chase to [Plaid](https://plaid.com) once an
 
 `sync` reads credentials from the environment variables `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ACCESS_TOKEN` (falling back to the Mac Keychain), `GOOGLE_SERVICE_ACCOUNT_JSON` (instead of the `credentials` file) and `TRACKER_CONFIG` (instead of `config.json`).
 
+## Dashboard on your phone (Google Apps Script)
+
+The same dashboard can run as a private web app inside your Google account, attached to your Sheet. It reads the Sheet live (so Plaid syncs show up without your computer), Budget edits save to the Goals tab, and only your Google account can open it. It's free and needs no hosting or domain.
+
+One-time setup (about 5 minutes, on your computer):
+
+1. Open your Sheet, then **Extensions → Apps Script**. Name the project (e.g. "Spending dashboard").
+2. Click **Project Settings** (gear icon) and tick **Show "appsscript.json" manifest file in editor**. Back in the **Editor**:
+   - Run `python tools/apps_script.py manifest`, open `appsscript.json`, select all and paste.
+   - Run `python tools/apps_script.py code`, open `Code.gs`, select all and paste.
+   - Click **+ → HTML**, name it `Index` (it becomes `Index.html`), run `python tools/apps_script.py index`, select all and paste.
+   - Save (⌘S).
+3. **Deploy → New deployment**, gear → **Web app**. Execute as: **Me**. Who has access: **Only myself**. Click **Deploy**.
+4. Click **Authorize access** and pick your account. Google warns that it "hasn't verified this app" because it's your own unpublished script: click **Advanced → Go to ... (unsafe)**, then **Allow**. It only asks for access to this one spreadsheet.
+5. Copy the **Web app URL**. On your phone, sign in to the same Google account in your browser, open the URL and add it to your home screen.
+
+Each tool command copies one file to the clipboard; none of them contain your data. When the dashboard changes later, paste the new `Index` (and `Code.gs` if it changed), then **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. The URL stays the same.
+
 ## Commands
 
 | Command | What it does |
@@ -156,7 +174,9 @@ spending_tracker/
   pairing.py                cancelled-order detection
   core.py                   merge/dedupe, recategorize, split, monthly totals
   sheets.py                 Google Sheets tabs, Summary formulas, Charts tab
-  dashboard.py, .html       interactive dashboard page (template + builder)
+  dashboard.py, .html       interactive dashboard page (template + local server)
+apps_script/                the dashboard as a private Google Apps Script web app (for your phone)
+tools/apps_script.py        copies the Apps Script files to the clipboard for pasting
   local_store.py            CSV storage for --local mode
 tools/plaid_link.py         one-time Plaid Link to connect your bank
 rules.default.csv           built-in merchant rules
