@@ -107,8 +107,9 @@ class SheetStore:
         return parse_goals(values)
 
     def write_goals(self, goals: dict) -> None:
-        ws = self._tab(GOALS, rows=100, cols=3)
-        ws.clear()
+        ws = self._tab(GOALS, rows=100, cols=5)
+        # Only A-C: anything else on the tab (e.g. a link to the dashboard in E1) stays.
+        ws.batch_clear(["A:C"])
         ws.update(values=goals_to_rows(goals), range_name="A1", value_input_option="RAW")
 
     # ---- sync state ----

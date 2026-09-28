@@ -70,7 +70,8 @@ function saveGoals(raw) {
     .concat(groups.map(g => [g.name, g.pct, g.cats.join(', ')]));
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Goals') || ss.insertSheet('Goals');
-  sheet.clearContents();
+  // Only A-C: anything else on the tab (e.g. a link to this dashboard in E1) stays.
+  sheet.getRange('A:C').clearContent();
   sheet.getRange(1, 1, rows.length, 3).setNumberFormat('@').setValues(rows.map(r => r.map(String)));
   return true;
 }
