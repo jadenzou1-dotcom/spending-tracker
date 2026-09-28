@@ -11,6 +11,7 @@
   python tracker.py search "zelle"                    find rows (shows IDs)
   python tracker.py split ID "Utilities & Phone=40" Rent
                                                       split one row across categories
+  python tracker.py dashboard [--no-open]             build data/dashboard.html and open it
 
 Add --local to use data/transactions.csv instead of Google Sheets.
 """
@@ -91,6 +92,8 @@ def main():
     sp = sub.add_parser("split")
     sp.add_argument("id")
     sp.add_argument("parts", nargs="+", help='"Category=amount" ..., one may omit =amount to take the rest')
+    dash = sub.add_parser("dashboard")
+    dash.add_argument("--no-open", action="store_true", help="build the page without opening it")
     args = p.parse_args()
 
     cfg = load_config()
@@ -162,6 +165,13 @@ def main():
         for t in txns:
             if args.text.lower() in f"{t.description} {t.note}".lower():
                 print(_line(t))
+    elif args.cmd == "dashboard":
+        from spending_tracker.dashboard import build
+        out = build(txns, ROOT / "data" / "dashboard.html")
+        print(f"Wrote {out}")
+        if not args.no_open:
+            import webbrowser
+            webbrowser.open(out.as_uri())
     elif args.cmd == "split":
         for t in split(txns, args.id, args.parts):
             print(f"  {t.category:20} {t.amount:9.2f}")

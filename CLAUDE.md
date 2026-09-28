@@ -8,6 +8,9 @@ Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Chart
 - When behavior, commands or layout change, update README.md and this file before committing. Don't leave old wording behind.
 - Before committing, run `git status` and make sure nothing personal is staged (see Privacy).
 
+## Dashboard (where analysis lives)
+- `tracker.py dashboard` writes `data/dashboard.html` (gitignored: it embeds real transactions) from `spending_tracker/dashboard.html`, a no-dependency template. It counts the same rows as the Summary (Exclude blank, no Transfers). Interactive analysis goes here, not into new Sheet tabs; the Sheet keeps Transactions / Summary / Charts.
+
 ## Plaid sync (the default now)
 - `tracker.py sync [--dry-run]` pulls new **posted** transactions from Plaid (`/transactions/sync`, `original_description` so rules match). Rows get the same IDs the CSV parser would give (`_make_id` on posted date), so CSV imports and syncs never duplicate each other. Card rows show Plaid's `authorized_date`, checking rows the posted date. Plaid's detailed category goes in the Chase Category column and is the fallback via `PLAID_CATEGORY_MAP`.
 - Credentials: env vars `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ACCESS_TOKEN` (locally they fall back to the Mac Keychain, service `spending-tracker-plaid`), `GOOGLE_SERVICE_ACCOUNT_JSON`, `TRACKER_CONFIG`. Never print or commit them.

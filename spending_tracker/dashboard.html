@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spending Dashboard</title>
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e4e2dc;
+  --hover: #f1efe9; --accent: #2a78d6; --good: #1a8a5a; --bad: #d23f3e; --gray: #b3b2ab;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9c9b94; --line: #33332f;
+    --hover: #2a2a27; --accent: #5b9cf0; --good: #3fbf86; --bad: #f06a69; --gray: #5d5d58;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9c9b94; --line: #33332f;
+  --hover: #2a2a27; --accent: #5b9cf0; --good: #3fbf86; --bad: #f06a69; --gray: #5d5d58;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums; }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+h2 { font-size: 15px; margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px; }
+.row { display: flex; align-items: center; gap: 8px; }
+.between { justify-content: space-between; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+section { margin-top: 16px; }
+select, input[type=search] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; }
+button.chip { font: inherit; font-size: 12px; color: var(--muted); background: none; border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+button.chip:hover { color: var(--ink); background: var(--hover); }
+
+/* trend */
+#trend svg { width: 100%; height: 240px; display: block; overflow: visible; }
+#trend .seg { cursor: pointer; transition: opacity .12s; }
+#trend .axis text { fill: var(--muted); font-size: 11px; }
+#trend .axis line { stroke: var(--line); }
+#trend .mlabel { cursor: pointer; }
+#trend .mlabel.sel { fill: var(--ink); font-weight: 600; }
+.legend-inline { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend-inline i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* month panels */
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+.kpi { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.kpi b { display: block; font-size: 18px; }
+.body { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 520px) { .body { grid-template-columns: 1fr; } .donut { max-width: 200px; margin: 0 auto; } }
+.donut svg { width: 100%; display: block; }
+.donut path { cursor: pointer; stroke: var(--panel); stroke-width: 1.5; transition: opacity .12s; }
+.cats { display: flex; flex-direction: column; }
+.cat { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 34px 52px; gap: 6px; align-items: center; text-align: left;
+  font: inherit; color: inherit; background: none; border: 0; border-radius: 6px; padding: 5px 6px; cursor: pointer; }
+.cat:hover { background: var(--hover); }
+.cat.sel { background: var(--hover); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.cat.dim { opacity: .45; }
+.dot { width: 10px; height: 10px; border-radius: 3px; }
+.cat .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat .pct { color: var(--muted); text-align: right; }
+.delta { font-size: 11px; text-align: right; }
+.up { color: var(--bad); } .down { color: var(--good); }
+
+/* transactions */
+.tx { width: 100%; border-collapse: collapse; }
+.tx td { padding: 6px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+.tx td.amt { text-align: right; white-space: nowrap; }
+.tx td.date { color: var(--muted); white-space: nowrap; width: 84px; }
+.tx .note { color: var(--muted); font-size: 12px; }
+.tx .tag { font-size: 11px; color: var(--muted); }
+.refund { color: var(--good); }
+.empty { color: var(--muted); padding: 16px 4px; }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px;
+  padding: 6px 8px; border-radius: 6px; opacity: 0; transition: opacity .08s; z-index: 10; white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Spending</h1>
+      <div class="muted small" id="built"></div>
+    </div>
+    <div class="row">
+      <button class="chip" id="theme" title="Switch light / dark">Theme</button>
+    </div>
+  </header>
+
+  <div class="card" id="trend">
+    <div class="row between" style="margin-bottom:8px; flex-wrap:wrap">
+      <h2>Spending by month</h2>
+      <div class="legend-inline" id="trend-legend"></div>
+    </div>
+    <div class="muted small" style="margin-bottom:6px">Click a bar to load that month on the left, Shift-click for the right. Click a colored segment to also pick that category.</div>
+    <div id="trend-chart"></div>
+  </div>
+
+  <section class="grid2">
+    <div class="card panel" data-side="0"></div>
+    <div class="card panel" data-side="1"></div>
+  </section>
+
+  <section class="card">
+    <div class="row between" style="flex-wrap:wrap; gap:12px">
+      <div class="row"><span class="dot" id="detail-dot"></span><h2 id="detail-title"></h2>
+        <button class="chip" id="clear" hidden>Show all categories</button></div>
+      <input type="search" id="q" placeholder="Filter transactions…" aria-label="Filter transactions">
+    </div>
+    <div class="grid2" style="margin-top:8px" id="lists"></div>
+  </section>
+</main>
+<div id="tip"></div>
+
+<script>
+const DATA = /*DATA*/null;
+const PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#1ba3c6","#b5485d","#8a6d3b","#6f9e2c","#c05fd0"];
+const ALL = "All time";
+
+const spend = DATA.txns.filter(t => t.kind === "spending");
+const months = [...new Set(DATA.txns.map(t => t.m))].sort().reverse();
+// Categories ranked by all-time spending, so colors stay put everywhere.
+const catTotals = sumBy(spend, t => t.cat, t => -t.amt);
+const cats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
+const color = c => { const i = cats.indexOf(c); return i >= 0 && i < PALETTE.length ? PALETTE[i] : "var(--gray)"; };
+
+const state = { months: [months[1] || months[0], months[0]], cat: null, q: "" };
+
+function sumBy(rows, key, val) {
+  const o = {};
+  for (const r of rows) o[key(r)] = (o[key(r)] || 0) + val(r);
+  return o;
+}
+const fmt0 = n => (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0});
+const fmt2 = n => (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const inMonth = (t, m) => m === ALL || t.m === m;
+const monthName = m => m === ALL ? ALL : new Date(m + "-15").toLocaleDateString(undefined, {month: "short", year: "numeric"});
+
+const tip = document.getElementById("tip");
+function showTip(e, html) { tip.innerHTML = html; tip.style.opacity = 1;
+  tip.style.left = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8) + "px"; tip.style.top = (e.clientY + 14) + "px"; }
+function hideTip() { tip.style.opacity = 0; }
+
+function pickCat(c) { state.cat = state.cat === c ? null : c; render(); }
+function pickMonth(side, m) { state.months[side] = m; render(); }
+
+// ---------- trend ----------
+function renderTrend() {
+  const ms = months.slice(0, 24).reverse();
+  const top = cats.slice(0, 8);
+  const el = document.getElementById("trend-chart");
+  const W = Math.max(el.clientWidth, 320), H = 240, L = 52, B = 22, T = 8;
+  const perMonth = ms.map(m => sumBy(spend.filter(t => t.m === m), t => t.cat, t => -t.amt));
+  const income = ms.map(m => DATA.txns.filter(t => t.m === m && t.kind === "income").reduce((s, t) => s + t.amt, 0));
+  const totals = perMonth.map(o => Object.values(o).filter(v => v > 0).reduce((a, b) => a + b, 0));
+  const max = Math.max(...totals, ...income, 1);
+  const step = niceStep(max / 4), yMax = Math.ceil(max / step) * step;
+  const y = v => T + (H - B - T) * (1 - v / yMax);
+  const bw = (W - L) / ms.length, pad = Math.min(bw * .22, 14);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending by month"><g class="axis">`;
+  for (let v = 0; v <= yMax; v += step) s += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${fmt0(v)}</text>`;
+  s += `</g>`;
+  ms.forEach((m, i) => {
+    const x = L + i * bw + pad, w = bw - pad * 2;
+    let acc = 0;
+    const parts = top.map(c => [c, Math.max(perMonth[i][c] || 0, 0)]);
+    const other = totals[i] - parts.reduce((a, p) => a + p[1], 0);
+    parts.push(["Everything else", other]);
+    for (const [c, v] of parts) {
+      if (v <= 0) continue;
+      const y0 = y(acc + v), h = y(acc) - y0; acc += v;
+      const fill = c === "Everything else" ? "var(--gray)" : color(c);
+      const dim = state.cat && state.cat !== c ? .22 : 1;
+      s += `<rect class="seg" x="${x}" y="${y0}" width="${w}" height="${Math.max(h, 0)}" fill="${fill}" opacity="${dim}"
+        data-m="${m}" data-c="${esc(c)}" data-v="${v}" data-t="${totals[i]}"/>`;
+    }
+    const sel = state.months.includes(m);
+    s += `<text class="axis mlabel ${sel ? "sel" : ""}" x="${x + w / 2}" y="${H - 6}" text-anchor="middle" data-m="${m}"
+      style="fill:${sel ? "var(--ink)" : "var(--muted)"}">${m.slice(2).replace("-", "/")}</text>`;
+    s += `<line x1="${x - 2}" x2="${x + w + 2}" y1="${y(income[i])}" y2="${y(income[i])}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"
+      data-m="${m}" data-inc="${income[i]}" class="inc"/>`;
+  });
+  s += `</svg>`;
+  el.innerHTML = s;
+  el.querySelectorAll(".seg, .mlabel, .inc").forEach(r => {
+    r.addEventListener("click", e => {
+      const side = e.shiftKey ? 1 : 0;
+      state.months[side] = r.dataset.m;
+      if (r.dataset.c && r.dataset.c !== "Everything else") state.cat = r.dataset.c;
+      render();
+    });
+    r.addEventListener("mousemove", e => {
+      if (r.dataset.inc) return showTip(e, `${monthName(r.dataset.m)} · income ${fmt0(+r.dataset.inc)}`);
+      if (!r.dataset.c) return;
+      showTip(e, `<b>${esc(r.dataset.c)}</b> · ${monthName(r.dataset.m)}<br>${fmt0(+r.dataset.v)} · ${Math.round(100 * r.dataset.v / r.dataset.t)}% of ${fmt0(+r.dataset.t)}`);
+    });
+    r.addEventListener("mouseleave", hideTip);
+  });
+  document.getElementById("trend-legend").innerHTML =
+    top.map(c => `<span><i style="background:${color(c)}"></i>${esc(c)}</span>`).join("") +
+    `<span><i style="background:var(--gray)"></i>Everything else</span><span><i style="background:var(--ink);height:3px;vertical-align:3px"></i>Income</span>`;
+}
+function niceStep(x) { const p = 10 ** Math.floor(Math.log10(x)); return [1, 2, 2.5, 5, 10].map(k => k * p).find(k => k >= x); }
+
+// ---------- month panels ----------
+function monthStats(m) {
+  const rows = DATA.txns.filter(t => inMonth(t, m));
+  const inc = rows.filter(t => t.kind === "income").reduce((s, t) => s + t.amt, 0);
+  const byCat = sumBy(rows.filter(t => t.kind === "spending"), t => t.cat, t => -t.amt);
+  const spent = Object.values(byCat).reduce((a, b) => a + b, 0);
+  return { inc, spent, byCat };
+}
+
+function renderPanel(side) {
+  const el = document.querySelector(`.panel[data-side="${side}"]`);
+  const m = state.months[side], other = state.months[1 - side];
+  const st = monthStats(m), ot = monthStats(other);
+  const list = Object.entries(st.byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const pos = list.reduce((s, [, v]) => s + v, 0);
+  const net = st.inc - st.spent;
+  const opts = [ALL, ...months].map(x => `<option value="${x}" ${x === m ? "selected" : ""}>${monthName(x)}</option>`).join("");
+  let h = `<div class="row between"><select aria-label="Month">${opts}</select>
+    <span class="muted small">vs ${monthName(other)}</span></div>
+    <div class="kpis"><div class="kpi"><span class="muted small">Income</span><b>${fmt0(st.inc)}</b></div>
+    <div class="kpi"><span class="muted small">Spent</span><b>${fmt0(st.spent)}</b></div>
+    <div class="kpi"><span class="muted small">${net >= 0 ? "Saved" : "Overspent"}</span><b class="${net >= 0 ? "down" : "up"}">${fmt0(Math.abs(net))}</b></div></div>
+    <div class="body"><div class="donut">${donut(list, pos)}</div><div class="cats">`;
+  for (const [c, v] of list) {
+    const d = v - (ot.byCat[c] || 0);
+    const cls = state.cat === c ? "sel" : state.cat ? "dim" : "";
+    const dtxt = Math.abs(d) < 1 ? "" : `<span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${fmt0(Math.abs(d)).replace("−", "")}</span>`;
+    h += `<button class="cat ${cls}" data-c="${esc(c)}"><span class="dot" style="background:${color(c)}"></span>
+      <span class="name">${esc(c)}</span><span>${fmt0(v)}</span><span class="pct">${Math.round(100 * v / pos)}%</span>${dtxt || "<span></span>"}</button>`;
+  }
+  if (!list.length) h += `<div class="empty">No spending this month.</div>`;
+  h += `</div></div>`;
+  el.innerHTML = h;
+  el.querySelector("select").addEventListener("change", e => pickMonth(side, e.target.value));
+  el.querySelectorAll("[data-c]").forEach(b => b.addEventListener("click", () => pickCat(b.dataset.c)));
+  el.querySelectorAll("path[data-c]").forEach(p => {
+    p.addEventListener("mousemove", e => showTip(e, `<b>${esc(p.dataset.c)}</b><br>${fmt0(+p.dataset.v)} · ${Math.round(100 * p.dataset.v / pos)}%`));
+    p.addEventListener("mouseleave", hideTip);
+  });
+}
+
+function donut(list, total) {
+  if (!total) return "";
+  const R = 90, r = 56, C = 100;
+  let a = -Math.PI / 2, s = `<svg viewBox="0 0 200 200" role="img" aria-label="Share of spending">`;
+  for (const [c, v] of list) {
+    const da = 2 * Math.PI * v / total, b = a + Math.min(da, 2 * Math.PI - 1e-4);
+    const big = da > Math.PI ? 1 : 0;
+    const p = (rad, ang) => `${C + rad * Math.cos(ang)} ${C + rad * Math.sin(ang)}`;
+    const op = state.cat && state.cat !== c ? .25 : 1;
+    s += `<path d="M ${p(R, a)} A ${R} ${R} 0 ${big} 1 ${p(R, b)} L ${p(r, b)} A ${r} ${r} 0 ${big} 0 ${p(r, a)} Z"
+      fill="${color(c)}" opacity="${op}" data-c="${esc(c)}" data-v="${v}"/>`;
+    a += da;
+  }
+  const sel = state.cat && list.find(([c]) => c === state.cat);
+  const [big, small] = sel ? [`${Math.round(100 * sel[1] / total)}%`, esc(state.cat)] : [fmt0(total), "spent"];
+  s += `<text x="100" y="100" text-anchor="middle" font-size="22" font-weight="600" fill="var(--ink)">${big}</text>
+    <text x="100" y="120" text-anchor="middle" font-size="11" fill="var(--muted)">${small}</text></svg>`;
+  return s;
+}
+
+// ---------- transaction lists ----------
+function renderLists() {
+  const c = state.cat, q = state.q.toLowerCase();
+  document.getElementById("detail-title").textContent = c ? c : "All spending";
+  document.getElementById("detail-dot").style.background = c ? color(c) : "transparent";
+  document.getElementById("clear").hidden = !c;
+  document.getElementById("lists").innerHTML = state.months.map(m => {
+    const rows = spend.filter(t => inMonth(t, m) && (!c || t.cat === c) &&
+      (!q || `${t.desc} ${t.note} ${t.cat}`.toLowerCase().includes(q))).sort((a, b) => a.amt - b.amt);
+    const total = rows.reduce((s, t) => s - t.amt, 0);
+    let h = `<div><div class="row between" style="margin:6px 0"><b>${monthName(m)}</b><span>${rows.length} · <b>${fmt2(total)}</b></span></div>`;
+    if (!rows.length) return h + `<div class="empty">Nothing here.</div></div>`;
+    h += `<table class="tx"><tbody>`;
+    for (const t of rows.slice(0, 300)) {
+      const v = -t.amt;
+      h += `<tr><td class="date">${t.d.slice(5)}</td><td>${esc(t.desc)}${c ? "" : ` <span class="tag">· ${esc(t.cat)}</span>`}
+        ${t.note ? `<div class="note">${esc(t.note)}</div>` : ""}</td><td class="amt ${v < 0 ? "refund" : ""}">${fmt2(v)}</td></tr>`;
+    }
+    if (rows.length > 300) h += `<tr><td colspan="3" class="empty">…and ${rows.length - 300} more. Narrow it with the filter.</td></tr>`;
+    return h + `</tbody></table></div>`;
+  }).join("");
+}
+
+function render() { renderTrend(); renderPanel(0); renderPanel(1); renderLists(); }
+
+document.getElementById("built").textContent = `${spend.length.toLocaleString()} spending transactions · built ${DATA.built} · rerun "tracker.py dashboard" to refresh`;
+document.getElementById("clear").addEventListener("click", () => pickCat(state.cat));
+document.getElementById("q").addEventListener("input", e => { state.q = e.target.value; renderLists(); });
+document.getElementById("theme").addEventListener("click", () => {
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const cur = document.documentElement.dataset.theme || (dark ? "dark" : "light");
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+  try { localStorage.setItem("theme", document.documentElement.dataset.theme); } catch (e) {}
+  render();
+});
+try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+render();
+let resizeTimer;
+addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderTrend, 100); });
+</script>
+</body>
+</html>
