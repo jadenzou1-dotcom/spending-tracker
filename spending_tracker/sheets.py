@@ -18,12 +18,14 @@ from .categorize import (ALL_CATEGORIES, DEFAULT_RULES_PATH, INCOME_CATEGORIES, 
 from .local_store import HEADERS, row_to_txn
 from .parsers import Txn
 
-TX, SUMMARY, RULES, CHARTS, SYNC = "Transactions", "Summary", "Rules", "Charts", "Sync"
+TX, SUMMARY, RULES, CHARTS, BREAKDOWN, SYNC = "Transactions", "Summary", "Rules", "Charts", "Breakdown", "Sync"
 
 # Categorical palette (fixed order, colorblind-checked for adjacent stacked segments).
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7"]
 OTHER_GRAY = "#9a9a94"
 OVERSPENT_RED = "#e34948"
+# Summary column groups: (header, body) tints for totals, income sources, spending categories.
+GROUP_TINTS = {"totals": ("#e8e8e4", "#f7f7f5"), "income": ("#c9ecd9", "#eef9f3"), "spending": ("#fbd9c7", "#fef3ec")}
 
 
 def _rgb(hex_color: str) -> dict:
@@ -63,7 +65,7 @@ class SheetStore:
         self.ss = gc.open_by_key(cfg["sheet_id"])
         self.tx = self._tab(TX, rows=1000, cols=len(HEADERS))
 
-    def _tab(self, name, rows=100, cols=20):
+    def _tab(self, name, rows=100, cols=20, index=None):
         try:
             return self.ss.worksheet(name)
         except gspread.WorksheetNotFound:
@@ -72,7 +74,7 @@ class SheetStore:
             if len(sheets) == 1 and sheets[0].title.startswith("Sheet") and _blank(sheets[0].get_all_values()):
                 sheets[0].update_title(name)
                 return sheets[0]
-            return self.ss.add_worksheet(name, rows=rows, cols=cols)
+            return self.ss.add_worksheet(name, rows=rows, cols=cols, index=index)
 
     # ---- rules ----
     def read_rules(self) -> list:
@@ -216,31 +218,41 @@ class SheetStore:
                          + [total(f"$A{r}", f"{_col(c)}$1") for c in inc_cols]
                          + [total(f"$A{r}", f"{_col(c)}$1", sign="-") for c in cat_cols])
 
-        # Second table: each category as a share of that month's spending.
-        start = len(table) + 2
-        table += [[], ["Share of spending"] + [""] * (first_cat - 2) + cats]
-        for i in range(len(months) + 1):
-            src = i + 2
-            table.append([f"=A{src}"] + [""] * (first_cat - 2)
-                         + [f'=IFERROR({_col(c)}{src}/$C{src},"")' for c in cat_cols])
-
         ws.clear()
         ws.resize(rows=len(table) + 10, cols=len(header))
         ws.update(values=table, range_name="A1", value_input_option="USER_ENTERED")
         sid = ws.id
-        pct_rows = (start, start + len(months) + 1)
+        # Shade each column group (totals | income sources | spending categories) and put a
+        # thick line between groups, so it's obvious where income stops and spending starts.
+        groups = [("totals", 0, first_inc - 1), ("income", first_inc - 1, first_cat - 1),
+                  ("spending", first_cat - 1, len(header))]
+        shading = []
+        for name, c0_, c1_ in groups:
+            head, body = GROUP_TINTS[name]
+            for r0, r1, color in ((0, 1, head), (1, n_last, body)):
+                shading.append({"repeatCell": {
+                    "range": {"sheetId": sid, "startRowIndex": r0, "endRowIndex": r1, "startColumnIndex": c0_, "endColumnIndex": c1_},
+                    "cell": {"userEnteredFormat": {"backgroundColorStyle": {"rgbColor": _rgb(color)}}},
+                    "fields": "userEnteredFormat.backgroundColorStyle"}})
+            if name != "spending":
+                shading.append({"updateBorders": {
+                    "range": {"sheetId": sid, "startRowIndex": 0, "endRowIndex": n_last, "startColumnIndex": c1_ - 1, "endColumnIndex": c1_},
+                    "right": {"style": "SOLID_THICK", "colorStyle": {"rgbColor": _rgb("#5f5f5a")}}}})
         self.ss.batch_update({"requests": [
+            # Start from unformatted cells so colors from an older column layout don't linger.
+            {"repeatCell": {"range": {"sheetId": sid}, "cell": {}, "fields": "userEnteredFormat"}},
             {"updateSheetProperties": {"properties": {"sheetId": sid, "gridProperties": {"frozenRowCount": 2, "frozenColumnCount": 1}},
                                        "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"}},
-            _range_fmt(sid, 1, len(months) + 2, 1, len(header), "CURRENCY", "$#,##0"),
-            _range_fmt(sid, 1, len(months) + 2, 4, 5, "PERCENT", "0%"),
-            _range_fmt(sid, pct_rows[0], pct_rows[1], first_cat - 1, len(header), "PERCENT", "0%"),
+            _range_fmt(sid, 1, n_last, 1, len(header), "CURRENCY", "$#,##0"),
+            _range_fmt(sid, 1, n_last, 4, 5, "PERCENT", "0%"),
             *[{"repeatCell": {"range": {"sheetId": sid, "startRowIndex": r, "endRowIndex": r + 1},
                               "cell": {"userEnteredFormat": {"textFormat": {"bold": True}}},
-                              "fields": "userEnteredFormat.textFormat.bold"}} for r in (0, 1, start - 1)],
+                              "fields": "userEnteredFormat.textFormat.bold"}} for r in (0, 1)],
+            *shading,
             {"autoResizeDimensions": {"dimensions": {"sheetId": sid, "dimension": "COLUMNS", "startIndex": 0, "endIndex": len(header)}}},
         ]})
         self._write_charts(months, _col(first_cat), _col(cat_cols[-1]), _col(len(header)), n_last)
+        self._write_breakdown(months, cats, first_cat, n_last)
 
     def _write_charts(self, months: list[str], c0: str, c1: str, last: str, n_last: int) -> None:
         """Charts tab, driven by month dropdowns in row 1:
@@ -348,7 +360,8 @@ class SheetStore:
             return {"title": title, "basicChart": spec}
 
         def pie_chart(title: str, col: int) -> dict:
-            return {"title": title, "pieChart": {"legendPosition": "RIGHT_LEGEND",
+            # Labeled legend: each slice's name and % sit next to it, no hovering needed.
+            return {"title": title, "pieChart": {"legendPosition": "LABELED_LEGEND",
                                                  "domain": src(col, T, 8), "series": src(col + 1, T, 8)}}
 
         def cells(r0, r1, c0_, c1_, fmt):
@@ -376,10 +389,100 @@ class SheetStore:
                                                     [11, 12, 13, 14], [PALETTE[0], PALETTE[6], PALETTE[2], OVERSPENT_RED],
                                                     stacked=False),
                                     "position": anchor(23, 0, 880, 300)}}},
-            {"addChart": {"chart": {"spec": pie_chart("Pie 1: month in K1", 15), "position": anchor(2, 9, 480, 400)}}},
-            {"addChart": {"chart": {"spec": pie_chart("Pie 2: month in P1", 18), "position": anchor(2, 14, 480, 400)}}},
+            # Columns J-S are widened so each pie has room for full slice labels.
+            {"updateDimensionProperties": {"range": {"sheetId": sid, "dimension": "COLUMNS", "startIndex": 9, "endIndex": 19},
+                                           "properties": {"pixelSize": 120}, "fields": "pixelSize"}},
+            {"addChart": {"chart": {"spec": pie_chart("Pie 1: month in K1", 15), "position": anchor(2, 9, 590, 400)}}},
+            {"addChart": {"chart": {"spec": pie_chart("Pie 2: month in P1", 18), "position": anchor(2, 14, 590, 400)}}},
         ]
         self.ss.batch_update({"requests": requests})
+
+    def _write_breakdown(self, months: list[str], cats: list[str], first_cat: int, n_last: int) -> None:
+        """Breakdown tab: what share of spending went to each category.
+          A-D  pick a month (or All time) in B1: every category, biggest first, with
+               dollars, % of that month's spending and a bar
+          F->  every month x category as % of that month's spending, shaded like a heat map
+        Formulas over Summary; the tab is rebuilt on every run but keeps the B1 choice."""
+        ws = self._tab(BREAKDOWN, rows=100, cols=30, index=self.ss.worksheet(SUMMARY).index + 1)
+        if not months:
+            return
+        choices = months + ["All time"]
+        old = (ws.get("B1") or [[""]])[0]
+        pick = old[0] if old and old[0] in choices else months[0]
+
+        S, c0, c1 = SUMMARY, _col(first_cat), _col(first_cat + len(cats) - 1)
+        top = 5  # first data row (1-based)
+        last = top + len(cats) - 1
+        month = 'IF(ISNUMBER($B$1),TEXT($B$1,"yyyy-mm"),$B$1)'
+        ranked = (f"=IFERROR(LET(m,{month},row,INDEX({S}!{c0}2:{c1}{n_last},MATCH(m,{S}!$A$2:$A${n_last},0),0),"
+                  f"names,{S}!{c0}1:{c1}1,SORT(FILTER(TRANSPOSE({{names;row}}),TRANSPOSE(row)>0),2,FALSE)),\"\")")
+        bar = '{"charttype","bar";"max",1;"color1","%s"}' % PALETTE[1]
+
+        values = [["Month", _text(pick), "<- pick a month, or All time"],
+                  ["Total spent", f"=SUM(B{top}:B{last})"],
+                  ["", "", "", "", "", "Share of each month's spending"],
+                  ["Category", "Spent", "Share", "", "", "Month"] + cats]
+        for i in range(max(len(cats), len(months) + 1)):
+            r = top + i
+            line = ["", "", "", ""]
+            if i < len(cats):
+                line = [ranked if i == 0 else "", "", f'=IF(B{r}="","",B{r}/$B$2)',
+                        f'=IF(B{r}="","",SPARKLINE(C{r},{bar}))']
+            if i <= len(months):
+                src = i + 2  # Summary row: All time, then newest month first
+                line += ["", f"={S}!A{src}"] + [f'=IFERROR({S}!{_col(first_cat + j)}{src}/{S}!$C{src},"")'
+                                                for j in range(len(cats))]
+            values.append(line)
+
+        sid = ws.id
+        meta = self.ss.fetch_sheet_metadata({"fields": "sheets(properties.sheetId,conditionalFormats)"})
+        n_rules = sum(len(sh.get("conditionalFormats", [])) for sh in meta["sheets"] if sh["properties"]["sheetId"] == sid)
+        self.ss.batch_update({"requests": [{"deleteConditionalFormatRule": {"sheetId": sid, "index": 0}}] * n_rules + [
+            {"setDataValidation": {"range": {"sheetId": sid}}},
+            {"repeatCell": {"range": {"sheetId": sid}, "cell": {}, "fields": "userEnteredFormat"}},
+        ]})
+        ws.clear()
+        ws.resize(rows=len(values) + 10, cols=max(6 + len(cats), 10))
+        ws.update(values=values, range_name="A1", value_input_option="USER_ENTERED")
+
+        grid = {"sheetId": sid, "startRowIndex": top - 1, "endRowIndex": top + len(months),
+                "startColumnIndex": 6, "endColumnIndex": 6 + len(cats)}
+        bold = {"textFormat": {"bold": True}}
+
+        def cells(r0, r1, c0_, c1_, fmt):
+            return {"repeatCell": {"range": {"sheetId": sid, "startRowIndex": r0, "endRowIndex": r1,
+                                             "startColumnIndex": c0_, "endColumnIndex": c1_},
+                                   "cell": {"userEnteredFormat": fmt}, "fields": "userEnteredFormat(" + ",".join(fmt) + ")"}}
+
+        head_tint = {"backgroundColorStyle": {"rgbColor": _rgb(GROUP_TINTS["spending"][0])}, **bold}
+        self.ss.batch_update({"requests": [
+            {"setDataValidation": {"range": {"sheetId": sid, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 1, "endColumnIndex": 2},
+                                   "rule": {"condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": m} for m in choices]},
+                                            "showCustomUi": True, "strict": True}}},
+            # Plain text keeps a picked "2026-09" from turning into a date.
+            cells(0, 1, 1, 2, {"numberFormat": {"type": "TEXT"}, **bold}),
+            cells(0, 2, 0, 1, bold),
+            _range_fmt(sid, 1, 2, 1, 2, "CURRENCY", "$#,##0"),
+            _range_fmt(sid, top - 1, last, 1, 2, "CURRENCY", "$#,##0"),
+            _range_fmt(sid, top - 1, last, 2, 3, "PERCENT", "0%"),
+            cells(3, 4, 0, 4, head_tint),
+            cells(2, 3, 5, 6, bold),
+            cells(3, 4, 5, 6 + len(cats), head_tint),
+            cells(top - 1, top + len(months), 5, 6, bold),
+            # Zero shows as blank so the heat map only lights up where money went.
+            _range_fmt(sid, top - 1, top + len(months), 6, 6 + len(cats), "PERCENT", '0%;-0%;""'),
+            {"addConditionalFormatRule": {"index": 0, "rule": {"ranges": [grid], "gradientRule": {
+                "minpoint": {"type": "NUMBER", "value": "0", "colorStyle": {"rgbColor": _rgb("#ffffff")}},
+                "midpoint": {"type": "NUMBER", "value": "0.15", "colorStyle": {"rgbColor": _rgb("#f6b48f")}},
+                "maxpoint": {"type": "MAX", "colorStyle": {"rgbColor": _rgb(PALETTE[1])}}}}}},
+            {"updateSheetProperties": {"properties": {"sheetId": sid, "gridProperties": {"frozenRowCount": 4}},
+                                       "fields": "gridProperties.frozenRowCount"}},
+            {"autoResizeDimensions": {"dimensions": {"sheetId": sid, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 6 + len(cats)}}},
+            {"updateDimensionProperties": {"range": {"sheetId": sid, "dimension": "COLUMNS", "startIndex": 3, "endIndex": 4},
+                                           "properties": {"pixelSize": 180}, "fields": "pixelSize"}},
+            {"updateDimensionProperties": {"range": {"sheetId": sid, "dimension": "COLUMNS", "startIndex": 4, "endIndex": 5},
+                                           "properties": {"pixelSize": 30}, "fields": "pixelSize"}},
+        ]})
 
 def _fmt(sid, col, kind, pattern):
     return _range_fmt(sid, 1, None, col, col + 1, kind, pattern)

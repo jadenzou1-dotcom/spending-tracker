@@ -5,8 +5,9 @@ Turn Chase bank and credit card exports into a categorized, month-by-month spend
 Download your transaction CSVs from Chase and run one command, or connect Chase through [Plaid](https://plaid.com) once and let a scheduled job pull new transactions twice a day. Either way your Google Sheet gets:
 
 - **Transactions**: every transaction from every account, newest first, with a category dropdown, an Exclude column and a Notes column
-- **Summary**: income, spending, net and % of income spent per month, plus a column per income source and spending category, **ordered by your own totals** (biggest first), all as live formulas
-- **Charts**: pick any month range (e.g. the last 3 months, or March to June) to see stacked monthly spending for your top 7 categories in that range, income vs spending with the difference shown as a Saved (aqua) or Overspent (red) bar, and two pies side by side to compare any two months, with hover for exact amounts
+- **Summary**: income, spending, net and % of income spent per month, plus a column per income source and spending category, **ordered by your own totals** (biggest first), all as live formulas. The totals, income and spending column groups are shaded gray / green / orange with a thick line between them
+- **Breakdown**: pick a month (or All time) and see every spending category ranked, with dollars, % of that month's spending and a bar; next to it, a month-by-category % grid shaded like a heat map
+- **Charts**: pick any month range (e.g. the last 3 months, or March to June) to see stacked monthly spending for your top 7 categories in that range, income vs spending with the difference shown as a Saved (aqua) or Overspent (red) bar, and two pies side by side to compare any two months, each slice labeled with its name and %
 - **Rules**: your own "merchant → category" rules, editable from any computer
 
 It handles the parts that make bank data annoying:
@@ -106,11 +107,11 @@ Add `--local` before any command to use `data/transactions.csv` instead of the S
 
 ## Setting up your categories
 
-The Summary and Charts are built from **whatever categories you use**. There's no fixed list of columns: each category gets a column, biggest spending first, and the charts pick your top 7 for the months you choose. So the first job after your first import is sorting your transactions:
+The Summary, Breakdown and Charts are built from **whatever categories you use**. There's no fixed list of columns: each category gets a column, biggest spending first, and the charts pick your top 7 for the months you choose. So the first job after your first import is sorting your transactions:
 
 1. `import` your CSVs (or `sync`). [`rules.default.csv`](rules.default.csv) sorts common merchants (DoorDash, Uber, Netflix, Trader Joe's, …), and card transactions fall back to Chase's own category (synced rows fall back to Plaid's).
 2. Everything else is `Uncategorized`. Go through it with `uncategorized`, and for each merchant you'll see again, `add-rule` it; for one-offs, `set` it or pick from the dropdown in the Sheet. Use the categories below or make up your own.
-3. Re-run `recategorize` after adding rules. The Summary and Charts rebuild around your categories.
+3. Re-run `recategorize` after adding rules. The Summary, Breakdown and Charts rebuild around your categories.
 
 This is the part [Claude Code](https://claude.com/claude-code) is good at: open it in this folder and say "go through my uncategorized transactions". It proposes rules, asks about merchants it can't identify, and records what you tell it in the Notes column (see [Using it with Claude Code](#using-it-with-claude-code)).
 
@@ -151,7 +152,7 @@ spending_tracker/
   plaid.py                  Plaid /transactions/sync → transactions (same IDs as CSV rows)
   pairing.py                cancelled-order detection
   core.py                   merge/dedupe, recategorize, split, monthly totals
-  sheets.py                 Google Sheets tabs, Summary formulas, Charts tab
+  sheets.py                 Google Sheets tabs, Summary formulas, Breakdown and Charts tabs
   local_store.py            CSV storage for --local mode
 tools/plaid_link.py         one-time Plaid Link to connect your bank
 rules.default.csv           built-in merchant rules

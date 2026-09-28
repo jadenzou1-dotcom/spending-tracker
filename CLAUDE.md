@@ -1,6 +1,6 @@
 # spending-tracker
 
-Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Charts / Rules tabs, plus a hidden Sync tab holding Plaid's cursor). Run with `.venv/bin/python tracker.py ...`. User-facing docs are in README.md.
+Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Breakdown / Charts / Rules tabs, plus a hidden Sync tab holding Plaid's cursor). Run with `.venv/bin/python tracker.py ...`. User-facing docs are in README.md.
 
 ## Keeping things in sync (always)
 - Every change to code, rules.default.csv or docs gets committed **and pushed** to GitHub (`origin main`) in the same turn, so the local folder and the GitHub repo never drift. "Commit" means commit and push.
