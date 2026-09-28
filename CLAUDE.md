@@ -9,8 +9,9 @@ Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Chart
 - Before committing, run `git status` and make sure nothing personal is staged (see Privacy).
 
 ## Dashboard (where analysis lives)
+- Refreshing the page picks up template (HTML/JS) changes and new ledger data; Python changes need the server restarted.
 - `tracker.py dashboard` serves `spending_tracker/dashboard.html` (no-dependency template, re-read on every request) from 127.0.0.1 with fresh ledger data per reload; `--static` writes `data/dashboard.html` (gitignored: it embeds real transactions). It counts the same rows as the Summary (Exclude blank, no Transfers). Interactive analysis goes here, not into new Sheet tabs; the Sheet keeps Transactions / Summary / Charts.
-- Budget goals live in the Sheet's **Goals** tab (B1 planned income; rows from 4: Category | Goal | % or $), or `data/goals.csv` with `--local`. The page saves them via POST /api/goals, guarded by a per-run token and a Host check. They're the user's personal numbers: never set them unless asked.
+- Budget goals live in the Sheet's **Goals** tab (B1 estimated monthly take-home income; rows from 4: Group | Goal % of income | comma-separated categories, `*` = everything not listed elsewhere), or `data/goals.csv` with `--local`. Cash savings = 100% minus the groups. Group names and category membership are personal, so they live only there, never in code. The page saves them via POST /api/goals, guarded by a per-run token and a Host check. They're the user's personal numbers: never set them unless asked.
 
 ## Plaid sync (the default now)
 - `tracker.py sync [--dry-run]` pulls new **posted** transactions from Plaid (`/transactions/sync`, `original_description` so rules match). Rows get the same IDs the CSV parser would give (`_make_id` on posted date), so CSV imports and syncs never duplicate each other. Card rows show Plaid's `authorized_date`, checking rows the posted date. Plaid's detailed category goes in the Chase Category column and is the fallback via `PLAID_CATEGORY_MAP`.

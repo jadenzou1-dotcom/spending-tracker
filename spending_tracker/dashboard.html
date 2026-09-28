@@ -102,7 +102,12 @@ table.goals { width: 100%; border-collapse: collapse; }
 .goals td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
 .goals th:first-child, .goals td:first-child { text-align: left; }
 .goals td.prog { width: 30%; min-width: 140px; }
-.goals tr.nogoal td { color: var(--muted); }
+.goals tr.sub td { color: var(--muted); font-size: 13px; padding-top: 4px; padding-bottom: 4px; background: var(--bg); }
+.goals tr.sub td:first-child { padding-left: 40px; }
+.goals tr.sub select { font-size: 12px; padding: 2px 6px; }
+.goals tr.savings td { border-top: 2px solid var(--line); }
+.goals .caret { background: none; border: 0; color: var(--muted); width: 20px; padding: 0; }
+.goals .gname { cursor: pointer; }
 .goals tr.total td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--line); }
 .goals .unit { width: 56px; }
 .track { position: relative; height: 10px; background: var(--track); border-radius: 5px; }
@@ -159,7 +164,7 @@ table.goals { width: 100%; border-collapse: collapse; }
     <div class="card">
       <div class="controls">
         <label>Month<select id="b-month"></select></label>
-        <label>Planned monthly income<input type="number" id="b-income" min="0" step="any" placeholder="e.g. 4000"></label>
+        <label>Estimated monthly income (take-home)<input type="number" id="b-income" min="0" step="any" placeholder="e.g. 4400"></label>
         <div class="small muted" id="b-actual-income"></div>
         <div style="flex:1"></div>
         <div id="save-status" class="muted"></div>
@@ -186,7 +191,7 @@ const cats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
 const color = c => { const i = cats.indexOf(c); return i >= 0 && i < PALETTE.length ? PALETTE[i] : "var(--gray)"; };
 
 const state = { view: "compare", months: months.slice(0, 2).reverse(), cat: null, q: "", bMonth: months[0] };
-const goals = { income: DATA.goals.income || 0, goals: DATA.goals.goals.map(g => ({...g})) };
+const goals = { income: DATA.goals.income || 0, groups: (DATA.goals.groups || []).map(g => ({...g, cats: [...g.cats]})) };
 
 function sumBy(rows, key, val) { const o = {}; for (const r of rows) o[key(r)] = (o[key(r)] || 0) + val(r); return o; }
 const fmt0 = n => (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0});
@@ -360,95 +365,116 @@ function renderCompare() {
 }
 
 // ---------- budget ----------
-const goalDollars = g => g.unit === "$" ? g.value : goals.income * g.value / 100;
-const find = c => goals.goals.find(g => g.cat === c);
+// Goals are groups of categories, each a % of estimated monthly income.
+// Cash savings is whatever the groups leave unassigned.
+const expanded = new Set();
+const gColor = i => PALETTE[i % PALETTE.length];
+function groupIndexOf(cat) {
+  const i = goals.groups.findIndex(g => g.cats.includes(cat));
+  return i >= 0 ? i : goals.groups.findIndex(g => g.cats.includes("*"));
+}
+function moveCat(cat, to) {
+  goals.groups.forEach(g => g.cats = g.cats.filter(c => c !== cat));
+  if (to !== "") goals.groups[+to].cats.push(cat);
+  changed();
+}
 
 function renderBudget() {
   const m = state.bMonth, st = monthStats(m);
-  const nMonths = m === ALL ? months.length : 1;  // All time compares against goals x number of months
+  const nMonths = m === ALL ? months.length : 1;  // All time: goals x number of months
   const inc = goals.income * nMonths;
   document.getElementById("b-month").innerHTML = monthOpts(m);
   const incEl = document.getElementById("b-income");
   if (document.activeElement !== incEl) incEl.value = goals.income || "";
   document.getElementById("b-actual-income").innerHTML =
     `Actual income ${m === ALL ? "all time" : "in " + monthName(m)}: <b style="color:var(--ink)">${fmt0(st.inc)}</b>` +
-    (m !== ALL && st.inc > 0 ? ` <button class="btn" id="use-actual" style="margin-left:6px">Use as planned income</button>` : "");
+    (m !== ALL && st.inc > 0 ? ` <button class="btn" id="use-actual" style="margin-left:6px">Use as estimate</button>` : "");
   const useBtn = document.getElementById("use-actual");
   if (useBtn) useBtn.addEventListener("click", () => { goals.income = Math.round(st.inc); changed(); });
 
-  const rows = goals.goals.map(g => ({ g, goal: goalDollars(g) * nMonths, spent: st.byCat[g.cat] || 0 }));
-  rows.sort((a, b) => b.goal - a.goal);
-  const goalCats = new Set(goals.goals.map(g => g.cat));
-  const unbudgeted = Object.entries(st.byCat).filter(([c, v]) => !goalCats.has(c) && Math.abs(v) >= .005).sort((a, b) => b[1] - a[1]);
-  const goalTotal = rows.reduce((s, r) => s + r.goal, 0);
-  const spentGoal = rows.reduce((s, r) => s + r.spent, 0);
-  const otherSpent = unbudgeted.reduce((s, [, v]) => s + v, 0);
+  // Spending per group (and per category inside it) for the chosen month.
+  const groups = goals.groups.map((g, i) => ({ g, i, spent: 0, cats: {} }));
+  const loose = { spent: 0, cats: {} };
+  for (const g of groups) for (const c of g.g.cats) if (c !== "*") g.cats[c] = 0;
+  for (const [c, v] of Object.entries(st.byCat)) {
+    const gi = groupIndexOf(c), into = gi >= 0 ? groups[gi] : loose;
+    into.cats[c] = (into.cats[c] || 0) + v; into.spent += v;
+  }
+  const allocated = goals.groups.reduce((s, g) => s + g.pct, 0);
+  const savePct = Math.max(100 - allocated, 0);
+  const saveGoal = inc * savePct / 100, saved = inc - st.spent;
+  const pctOf = v => inc > 0 ? `${Math.round(100 * v / inc)}%` : "";
 
-  // Plan vs actual: how the planned income was meant to be split, next to where it went.
-  const scale = Math.max(inc, goalTotal, st.spent, 1);
-  const seg = (v, fill, label, cls = "") => v > 0 ? `<i class="${cls}" style="width:${100 * v / scale}%;${fill ? `background:${fill}` : ""}" data-tip="${esc(label)}: ${fmt0(v)}"></i>` : "";
-  const plan = rows.map(r => seg(r.goal, color(r.g.cat), r.g.cat)).join("") + seg(inc - goalTotal, "", "Planned savings", "save");
-  const actual = rows.map(r => seg(Math.max(r.spent, 0), color(r.g.cat), r.g.cat)).join("")
-    + seg(Math.max(otherSpent, 0), "var(--gray)", "No goal set") + seg(inc - st.spent, "", "Saved", "save");
-  document.getElementById("b-stack").innerHTML = inc > 0 || goalTotal > 0 ?
+  // Plan vs actual: how income was meant to be split, next to where it went.
+  const scale = Math.max(inc, st.spent, 1);
+  const seg = (v, fill, label, cls = "") => v > 0 ? `<i class="${cls}" style="width:${100 * v / scale}%;${fill ? `background:${fill}` : ""}" data-tip="${esc(label)}: ${fmt0(v)}${inc > 0 ? " (" + Math.round(100 * v / inc) + "% of income)" : ""}"></i>` : "";
+  const plan = groups.map(r => seg(inc * r.g.pct / 100, gColor(r.i), r.g.name)).join("") + seg(saveGoal, "", "Cash savings", "save");
+  const actual = groups.map(r => seg(Math.max(r.spent, 0), gColor(r.i), r.g.name)).join("")
+    + seg(Math.max(loose.spent, 0), "var(--gray)", "Not in any group") + seg(saved, "", "Saved", "save");
+  document.getElementById("b-stack").innerHTML = inc > 0 ?
     `<span class="small muted">Plan</span><div class="stackbar">${plan}</div>
      <span class="small muted">Actual</span><div class="stackbar">${actual}</div>
-     <span></span><div class="small muted">Full bar = ${fmt0(scale)}. Hatched = savings. ${st.spent > inc && inc > 0 ? `<span class="bad">Spent ${fmt0(st.spent - inc)} more than planned income.</span>` : ""}</div>` :
-    `<span></span><div class="muted small">Enter your planned monthly income, then add goals below.</div>`;
+     <span></span><div class="small muted">Full bar = ${fmt0(scale)}. Hatched = cash savings. Hover a segment for details.
+       ${st.spent > inc ? `<span class="bad">Spent ${fmt0(st.spent - inc)} more than estimated income.</span>` : ""}</div>` :
+    `<span></span><div class="muted small">Enter your estimated monthly income to see goals in dollars.</div>`;
   document.querySelectorAll("#b-stack [data-tip]").forEach(el => tipOn(el, el.dataset.tip));
 
-  let h = `<thead><tr><th>Category</th><th>Goal</th><th></th><th>Goal $</th><th>Spent</th><th>Progress</th><th>Left / over</th><th></th></tr></thead><tbody>`;
-  for (const r of rows) {
-    const left = r.goal - r.spent, over = left < 0;
-    const sc = Math.max(r.goal, r.spent, 1);
-    const alt = r.g.unit === "%" ? fmt0(goalDollars(r.g)) : (goals.income ? `${Math.round(100 * r.g.value / goals.income)}%` : "");
-    h += `<tr><td><span class="row"><span class="dot" style="background:${color(r.g.cat)}"></span>${esc(r.g.cat)}</span></td>
-      <td><input type="number" min="0" step="any" value="${r.g.value}" data-goal="${esc(r.g.cat)}" aria-label="Goal for ${esc(r.g.cat)}"></td>
-      <td><select class="unit" data-unit="${esc(r.g.cat)}" aria-label="Unit"><option value="%" ${r.g.unit === "%" ? "selected" : ""}>%</option><option value="$" ${r.g.unit === "$" ? "selected" : ""}>$</option></select>
-        <div class="small muted">${alt ? "= " + alt : ""}</div></td>
-      <td>${fmt0(r.goal)}</td><td>${fmt0(r.spent)}</td>
-      <td class="prog"><div class="track"><div class="fill" style="width:${100 * Math.max(r.spent, 0) / sc}%;background:${over ? "var(--bad)" : "var(--good)"}"></div>
-        <div class="mark" style="left:calc(${100 * r.goal / sc}% - 1px)"></div></div></td>
-      <td class="${over ? "bad" : "good"}">${over ? fmt0(-left) + " over" : fmt0(left) + " left"}</td>
-      <td><button class="x" data-del="${esc(r.g.cat)}" title="Remove goal" aria-label="Remove goal for ${esc(r.g.cat)}">×</button></td></tr>`;
+  const groupOpts = cur => goals.groups.map((g, i) => `<option value="${i}" ${i === cur ? "selected" : ""}>${esc(g.name)}</option>`).join("")
+    + `<option value="" ${cur < 0 ? "selected" : ""}>(no group)</option>`;
+  const catRows = (cats, gi) => Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) =>
+    `<tr class="sub"><td>${esc(c)}</td><td></td><td></td><td>${fmt0(v)}</td><td>${pctOf(v)}</td><td></td>
+      <td colspan="2"><select data-move="${esc(c)}" aria-label="Move ${esc(c)} to group">${groupOpts(gi)}</select></td></tr>`).join("");
+  const bar = (spent, goal, good) => { const sc = Math.max(goal, spent, 1);
+    return `<div class="track"><div class="fill" style="width:${100 * Math.max(spent, 0) / sc}%;background:${good ? "var(--good)" : "var(--bad)"}"></div>
+      <div class="mark" style="left:calc(${100 * goal / sc}% - 1px)"></div></div>`; };
+
+  let h = `<thead><tr><th>Group</th><th>Goal %</th><th>Goal $</th><th>Spent</th><th>Actual %</th><th>Progress</th><th>Left / over</th><th></th></tr></thead><tbody>`;
+  for (const r of groups) {
+    const goal = inc * r.g.pct / 100, left = goal - r.spent, open = expanded.has(r.g.name);
+    const k = r.g.cats.filter(c => c !== "*").length;
+    const n = `${k} ${k === 1 ? "category" : "categories"}${r.g.cats.includes("*") ? " + everything else" : ""}`;
+    h += `<tr><td><span class="row gname" data-toggle="${esc(r.g.name)}"><button class="caret" aria-label="Show categories">${open ? "▾" : "▸"}</button>
+        <span class="dot" style="background:${gColor(r.i)}"></span>${esc(r.g.name)} <span class="small muted">${n}</span></span></td>
+      <td><input type="number" min="0" max="100" step="any" value="${r.g.pct}" data-pct="${r.i}" aria-label="Goal % for ${esc(r.g.name)}"></td>
+      <td>${fmt0(goal)}</td><td>${fmt0(r.spent)}</td><td>${pctOf(r.spent)}</td>
+      <td class="prog">${bar(r.spent, goal, left >= 0)}</td>
+      <td class="${left >= 0 ? "good" : "bad"}">${left >= 0 ? fmt0(left) + " left" : fmt0(-left) + " over"}</td>
+      <td><button class="x" data-del="${r.i}" title="Remove group" aria-label="Remove ${esc(r.g.name)}">×</button></td></tr>`;
+    if (open) h += catRows(r.cats, r.i);
   }
-  const free = cats.filter(c => !goalCats.has(c));
-  h += `<tr><td colspan="8"><div class="row wrap"><select id="new-cat" aria-label="Category">${free.map(c => `<option>${esc(c)}</option>`).join("")}</select>
-      <input type="number" id="new-val" min="0" step="any" placeholder="30" aria-label="New goal">
-      <select id="new-unit" aria-label="Unit"><option value="%">% of income</option><option value="$">$ per month</option></select>
-      <button class="btn" id="add-goal" ${free.length ? "" : "disabled"}>Add goal</button></div></td></tr>`;
-  for (const [c, v] of unbudgeted) {
-    h += `<tr class="nogoal"><td><span class="row"><span class="dot" style="background:${color(c)}"></span>${esc(c)}</span></td><td colspan="3">no goal</td>
-      <td>${fmt0(v)}</td><td></td><td></td><td><button class="btn" data-quick="${esc(c)}" data-v="${v / nMonths}" title="Set a goal at this month's amount">+ Goal</button></td></tr>`;
+  if (Object.keys(loose.cats).length) {
+    const open = expanded.has("");
+    h += `<tr><td><span class="row gname" data-toggle=""><button class="caret">${open ? "▾" : "▸"}</button><span class="dot" style="background:var(--gray)"></span>Not in any group</span></td>
+      <td></td><td></td><td>${fmt0(loose.spent)}</td><td>${pctOf(loose.spent)}</td><td></td><td class="small muted">move these into a group</td><td></td></tr>`;
+    if (open) h += catRows(loose.cats, -1);
   }
-  const saved = inc - st.spent;
-  h += `<tr class="total"><td>Total</td><td colspan="2" class="small muted">${inc > 0 ? `${Math.round(100 * goalTotal / inc)}% of income planned` : ""}</td>
-    <td>${fmt0(goalTotal)}</td><td>${fmt0(st.spent)}</td><td></td>
-    <td class="${saved >= 0 ? "good" : "bad"}">${inc > 0 ? (saved >= 0 ? `${fmt0(saved)} saved` : `${fmt0(-saved)} overspent`) : ""}</td><td></td></tr>`;
-  if (inc > 0) h += `<tr><td colspan="8" class="small muted" style="text-align:left;white-space:normal">Planned savings: ${fmt0(inc - goalTotal)} (${Math.round(100 * (inc - goalTotal) / inc)}% of planned income).
-    Goal categories used ${fmt0(spentGoal)} of ${fmt0(goalTotal)}; categories without a goal took ${fmt0(otherSpent)}.</td></tr>`;
+  h += `<tr class="savings"><td><span class="row"><span class="caret"></span><span class="dot save" style="background:var(--good)"></span><b>Cash savings</b> <span class="small muted">what's left</span></span></td>
+    <td class="small muted">${Math.round(savePct * 10) / 10}%</td><td>${fmt0(saveGoal)}</td><td>${inc > 0 ? fmt0(saved) + " saved" : ""}</td><td>${pctOf(saved)}</td>
+    <td class="prog">${inc > 0 ? bar(saved, saveGoal, saved >= saveGoal) : ""}</td>
+    <td class="${saved >= saveGoal ? "good" : "bad"}">${inc > 0 ? (saved >= saveGoal ? fmt0(saved - saveGoal) + " ahead" : fmt0(saveGoal - saved) + " short") : ""}</td><td></td></tr>`;
+  h += `<tr class="total"><td>Total</td><td class="small muted">${Math.round(allocated * 10) / 10}% + ${Math.round(savePct * 10) / 10}%</td><td>${fmt0(inc)}</td><td>${fmt0(st.spent)}</td><td>${pctOf(st.spent)}</td><td></td>
+    <td class="small muted" style="white-space:normal">${allocated > 100 ? `<span class="bad">Groups add up to more than 100%.</span>` : ""}</td><td></td></tr>`;
+  h += `<tr><td colspan="8"><div class="row wrap"><input id="new-name" placeholder="New group name" aria-label="New group name" style="width:180px">
+      <input type="number" id="new-pct" min="0" max="100" step="any" placeholder="%" aria-label="Goal %">
+      <button class="btn" id="add-group">Add group</button><span class="small muted">Then open a group (▸) and move categories into it.</span></div></td></tr>`;
   const el = document.getElementById("b-table");
   el.innerHTML = h + `</tbody>`;
 
-  el.querySelectorAll("[data-goal]").forEach(i => i.addEventListener("change", () => { find(i.dataset.goal).value = Math.max(+i.value || 0, 0); changed(); }));
-  el.querySelectorAll("[data-unit]").forEach(s => s.addEventListener("change", () => {
-    // Keep the same dollar amount when switching between % and $.
-    const g = find(s.dataset.unit), d = goalDollars(g);
-    g.unit = s.value;
-    g.value = g.unit === "$" ? Math.round(d) : (goals.income ? Math.round(1000 * d / goals.income) / 10 : g.value);
-    changed();
+  el.querySelectorAll("[data-toggle]").forEach(t => t.addEventListener("click", () => {
+    const k = t.dataset.toggle; expanded.has(k) ? expanded.delete(k) : expanded.add(k); renderBudget();
   }));
-  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { goals.goals = goals.goals.filter(g => g.cat !== b.dataset.del); changed(); }));
-  el.querySelectorAll("[data-quick]").forEach(b => b.addEventListener("click", () => {
-    const v = +b.dataset.v;
-    goals.goals.push(goals.income ? { cat: b.dataset.quick, value: Math.round(1000 * v / goals.income) / 10, unit: "%" } : { cat: b.dataset.quick, value: Math.round(v), unit: "$" });
-    changed();
+  el.querySelectorAll("[data-pct]").forEach(i => i.addEventListener("change", () => {
+    goals.groups[+i.dataset.pct].pct = Math.min(Math.max(+i.value || 0, 0), 100); changed();
   }));
-  el.querySelector("#add-goal").addEventListener("click", () => {
-    const c = el.querySelector("#new-cat").value, v = +el.querySelector("#new-val").value;
-    if (!c || !(v > 0)) return el.querySelector("#new-val").focus();
-    goals.goals.push({ cat: c, value: v, unit: el.querySelector("#new-unit").value });
-    changed();
+  el.querySelectorAll("[data-move]").forEach(sel => sel.addEventListener("change", () => moveCat(sel.dataset.move, sel.value)));
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => {
+    const g = goals.groups[+b.dataset.del];
+    if (confirm(`Remove the "${g.name}" group? Its categories become ungrouped.`)) { goals.groups.splice(+b.dataset.del, 1); changed(); }
+  }));
+  el.querySelector("#add-group").addEventListener("click", () => {
+    const name = el.querySelector("#new-name").value.trim().replace(/,/g, " "), pct = +el.querySelector("#new-pct").value || 0;
+    if (!name || goals.groups.some(g => g.name === name)) return el.querySelector("#new-name").focus();
+    goals.groups.push({ name, pct, cats: [] }); expanded.add(name); changed();
   });
 }
 

@@ -38,14 +38,18 @@ def build(txns: list[Txn], goals: dict, out: Path) -> Path:
 
 
 def clean_goals(raw: dict) -> dict:
-    """Validate goals posted by the page."""
-    goals = []
-    for g in raw.get("goals", [])[:100]:
-        cat = str(g.get("cat", "")).strip()[:80]
-        if cat and cat not in {x["cat"] for x in goals}:
-            goals.append({"cat": cat, "value": max(float(g.get("value") or 0), 0.0),
-                          "unit": "$" if g.get("unit") == "$" else "%"})
-    return {"income": max(float(raw.get("income") or 0), 0.0), "goals": goals}
+    """Validate goals posted by the page: groups with a % of income and their categories."""
+    groups, taken = [], set()
+    for g in raw.get("groups", [])[:50]:
+        name = str(g.get("name", "")).strip().replace(",", " ")[:60]
+        if not name or name in {x["name"] for x in groups}:
+            continue
+        # A category belongs to one group at most.
+        cats = [c for c in (str(c).strip().replace(",", " ")[:80] for c in g.get("cats", [])[:200])
+                if c and c not in taken]
+        taken.update(cats)
+        groups.append({"name": name, "pct": min(max(float(g.get("pct") or 0), 0.0), 100.0), "cats": cats})
+    return {"income": max(float(raw.get("income") or 0), 0.0), "groups": groups}
 
 
 def serve(store, port: int, open_browser: bool) -> None:

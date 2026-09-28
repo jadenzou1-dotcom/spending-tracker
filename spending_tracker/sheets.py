@@ -99,11 +99,11 @@ class SheetStore:
     # ---- budget goals ----
     def read_goals(self) -> dict:
         """Goals tab, written by the dashboard's Budget view (also editable here):
-        B1 = planned monthly income; rows from 4 = Category | Goal | Unit (% of income or $)."""
+        B1 = estimated monthly income; rows from 4 = Group | Goal % of income | its categories."""
         try:
             values = self.ss.worksheet(GOALS).get_all_values()
         except gspread.WorksheetNotFound:
-            return {"income": 0, "goals": []}
+            return {"income": 0, "groups": []}
         return parse_goals(values)
 
     def write_goals(self, goals: dict) -> None:

@@ -9,7 +9,7 @@ Download your transaction CSVs from Chase and run one command, or connect Chase 
 - **Charts**: pick any month range (e.g. the last 3 months, or March to June) to see stacked monthly spending for your top 7 categories in that range, income vs spending with the difference shown as a Saved (aqua) or Overspent (red) bar, and two pies side by side to compare any two months, each slice labeled with its name and %
 - **Dashboard** (`tracker.py dashboard`): an interactive page served on your own computer only.
   - **Compare**: pick as many months as you like; one row per category, one column per month. Click a category (in the table, a donut or the monthly bars) and its transactions for every chosen month appear side by side.
-  - **Budget**: enter your planned monthly income and a goal per category (% of income or $ per month), then see each month's spending against the goals, what's over or under, and plan vs actual. Goals are saved to a **Goals** tab in your Sheet.
+  - **Budget**: enter your estimated monthly take-home income, group your categories into broader buckets (Housing, Food, Transportation, ...) and give each a % of income. Whatever the groups leave unassigned is your cash-savings target. Pick a month to see each group's spending against its goal (open a group to see its categories or move one to another group), what's over or under, and plan vs actual. Goals are saved to a **Goals** tab in your Sheet (also editable there; `*` in a group's categories means everything not listed elsewhere).
 - **Rules**: your own "merchant → category" rules, editable from any computer
 
 It handles the parts that make bank data annoying:

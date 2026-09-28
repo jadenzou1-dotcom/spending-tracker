@@ -13,9 +13,12 @@ def txn_to_row(t: Txn) -> list:
             t.account, t.chase_category, t.chase_type, t.month, t.id, t.note]
 
 
+# Budget goals: groups of categories, each with a target % of estimated monthly
+# income. Whatever isn't assigned to a group is the cash-savings target.
 def goals_to_rows(goals: dict) -> list:
-    return ([["Planned monthly income", goals["income"]], [], ["Category", "Goal", "Unit (% of income or $)"]]
-            + [[g["cat"], g["value"], g["unit"]] for g in goals["goals"]])
+    return ([["Estimated monthly income", goals["income"]], [],
+             ["Group", "Goal (% of income)", "Categories (comma-separated; * = everything not listed elsewhere)"]]
+            + [[g["name"], g["pct"], ", ".join(g["cats"])] for g in goals["groups"]])
 
 
 def parse_goals(rows: list) -> dict:
@@ -25,9 +28,10 @@ def parse_goals(rows: list) -> dict:
         except ValueError:
             return 0.0
     income = num(rows[0][1]) if rows and len(rows[0]) > 1 else 0.0
-    goals = [{"cat": r[0].strip(), "value": num(r[1]), "unit": "$" if r[2:3] == ["$"] else "%"}
-             for r in rows[3:] if len(r) >= 2 and r[0].strip()]
-    return {"income": income, "goals": goals}
+    groups = [{"name": r[0].strip(), "pct": num(r[1]),
+               "cats": [c.strip() for c in (r[2] if len(r) > 2 else "").split(",") if c.strip()]}
+              for r in rows[3:] if len(r) >= 2 and r[0].strip()]
+    return {"income": income, "groups": groups}
 
 
 def row_to_txn(r: dict) -> Txn:
@@ -68,7 +72,7 @@ class LocalStore:
     def read_goals(self) -> dict:
         p = self.path.with_name("goals.csv")
         if not p.exists():
-            return {"income": 0, "goals": []}
+            return {"income": 0, "groups": []}
         with open(p, newline="", encoding="utf-8") as f:
             return parse_goals(list(csv.reader(f)))
 
