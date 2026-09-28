@@ -141,7 +141,17 @@ class SheetStore:
 
         categories = ALL_CATEGORIES + sorted({t.category for t in txns} - set(ALL_CATEGORIES) - {""})
         sid, n = self.tx.id, len(rows)
-        self.ss.batch_update({"requests": [
+        meta = self.ss.fetch_sheet_metadata({"fields": "sheets(properties.sheetId,protectedRanges.protectedRangeId)"})
+        old_protect = [p["protectedRangeId"] for sh in meta["sheets"] if sh["properties"]["sheetId"] == sid
+                       for p in sh.get("protectedRanges", [])]
+        # Bank-sourced columns (all but Category, Exclude, Notes) warn before an edit, so a
+        # stray fill-right or paste can't silently overwrite a description or month.
+        locked = [(0, 3), (5, 10)]
+        self.ss.batch_update({"requests": [{"deleteProtectedRange": {"protectedRangeId": p}} for p in old_protect] + [
+            {"addProtectedRange": {"protectedRange": {
+                "range": {"sheetId": sid, "startRowIndex": 1, "startColumnIndex": c0, "endColumnIndex": c1},
+                "description": "From the bank; edit Category / Exclude / Notes instead", "warningOnly": True}}}
+            for c0, c1 in locked] + [
             {"updateSheetProperties": {"properties": {"sheetId": sid, "gridProperties": {"frozenRowCount": 1}},
                                        "fields": "gridProperties.frozenRowCount"}},
             {"repeatCell": {"range": {"sheetId": sid, "startRowIndex": 0, "endRowIndex": 1},

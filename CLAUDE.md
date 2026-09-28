@@ -38,6 +38,7 @@ Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Chart
 - Exclude column: blank = counts; anything else = ignored by Summary. Auto-filled with "cancelled" for charge + refund pairs.
 - Transfer (card payments, moves between the user's own accounts) never counts as income or spending. This is what prevents double counting card purchases.
 - Before risky sheet changes, back up Transactions to `data/backup-*.csv`.
+- Every write re-adds warning-only protection on the bank-sourced Transactions columns (all but Category / Exclude / Notes), replacing the previous protection, so stray edits prompt first.
 
 ## Privacy
 Gitignored and must stay that way: `config.json`, `service_account.json`, `rules.local.csv`, `data/`, all CSVs except `rules.default.csv` and `examples/*.csv`. The examples are fake data; never put real transactions there.

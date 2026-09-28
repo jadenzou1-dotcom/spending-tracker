@@ -61,7 +61,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
    .venv/bin/python tracker.py recategorize
    ```
 
-You can also edit Category, Exclude and Notes directly in the Sheet. Your edits are kept on every re-import.
+You can also edit Category, Exclude and Notes directly in the Sheet. Your edits are kept on every re-import. The other columns come from the bank and are protected with a warning, so an accidental paste or fill-right asks before overwriting them.
 
 ## Daily sync with Plaid (optional)
 
