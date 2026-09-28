@@ -2,16 +2,28 @@
  * Spending dashboard as a private web app, served from the Google Sheet itself.
  *
  * Paste into the Sheet's Apps Script project (Extensions > Apps Script) and deploy
- * as a web app that runs as you and only you can open (see README, "Dashboard on
- * your phone"). Each visit reads Transactions and Goals live; Budget edits are
- * saved back to the Goals tab. Index.html is spending_tracker/dashboard.html,
+ * as a web app that runs as the user accessing it (see README, "Dashboard on your
+ * phone"). It runs with the visitor's own Google permissions, so it only works for
+ * accounts the Sheet is shared with; anyone else gets a message and no data.
+ * Each visit reads Transactions and Goals live; Budget edits are saved back to the
+ * Goals tab (which needs edit access to the Sheet). Index.html is spending_tracker/dashboard.html,
  * produced by `tools/apps_script.py index`.
  */
 
 function doGet() {
+  let data;
+  try {
+    data = loadData_();
+  } catch (e) {
+    // Runs as the visitor, so this fails for accounts the Sheet isn't shared with.
+    return HtmlService.createHtmlOutput(
+      '<p style="font:16px system-ui;margin:40px">This dashboard only works for Google accounts the ' +
+      'Spending Tracker Sheet is shared with. Switch to one of those accounts and reload.</p>')
+      .setTitle('Spending');
+  }
   const page = HtmlService.createTemplateFromFile('Index');
   // "</" inside a <script> would end it early.
-  page.data = JSON.stringify(loadData_()).replace(/<\//g, '<\\/');
+  page.data = JSON.stringify(data).replace(/<\//g, '<\\/');
   return page.evaluate()
     .setTitle('Spending')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');

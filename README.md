@@ -93,7 +93,7 @@ Instead of downloading CSVs, connect Chase to [Plaid](https://plaid.com) once an
 
 ## Dashboard on your phone (Google Apps Script)
 
-The same dashboard can run as a private web app inside your Google account, attached to your Sheet. It reads the Sheet live (so Plaid syncs show up without your computer), Budget edits save to the Goals tab, and only your Google account can open it. It's free and needs no hosting or domain.
+The same dashboard can run as a private web app inside your Google account, attached to your Sheet. It reads the Sheet live (so Plaid syncs show up without your computer) and Budget edits save to the Goals tab. It runs with the visitor's own Google permissions, so it only works for accounts the Sheet is shared with: to open it from another Google account of yours, share the Sheet with that account (as an editor, so Budget edits can save). Anyone else who gets the link sees a message and no data. It's free and needs no hosting or domain.
 
 One-time setup (about 5 minutes, on your computer):
 
@@ -103,9 +103,9 @@ One-time setup (about 5 minutes, on your computer):
    - Run `python tools/apps_script.py code`, open `Code.gs`, select all and paste.
    - Click **+ → HTML**, name it `Index` (it becomes `Index.html`), run `python tools/apps_script.py index`, select all and paste.
    - Save (⌘S).
-3. **Deploy → New deployment**, gear → **Web app**. Execute as: **Me**. Who has access: **Only myself**. Click **Deploy**.
+3. **Deploy → New deployment**, gear → **Web app**. Execute as: **User accessing the web app**. Who has access: **Anyone with Google account** (the Sheet's sharing is what actually limits it). Click **Deploy**.
 4. Click **Authorize access** and pick your account. Google warns that it "hasn't verified this app" because it's your own unpublished script: click **Advanced → Go to ... (unsafe)**, then **Allow**. It only asks for access to this one spreadsheet.
-5. Copy the **Web app URL**. On your phone, sign in to the same Google account in your browser, open the URL and add it to your home screen.
+5. Copy the **Web app URL**. On your phone, sign in to a Google account the Sheet is shared with, open the URL and add it to your home screen. Each account approves access once, the first time it opens the link.
 
 Each tool command copies one file to the clipboard; none of them contain your data. When the dashboard changes later, paste the new `Index` (and `Code.gs` if it changed), then **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. The URL stays the same.
 
