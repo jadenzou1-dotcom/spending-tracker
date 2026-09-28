@@ -6,7 +6,7 @@ Download your transaction CSVs from Chase and run one command, or connect Chase 
 
 - **Transactions**: every transaction from every account, newest first, with a category dropdown, an Exclude column and a Notes column
 - **Summary**: income, spending, net and % of income spent per month, plus a column per income source and spending category, **ordered by your own totals** (biggest first), all as live formulas. The totals, income and spending column groups are shaded gray / green / orange with a thick line between them
-- **Breakdown**: pick a month (or All time) and see every spending category ranked, with dollars, % of that month's spending and a bar; next to it, a month-by-category % grid shaded like a heat map
+- **Breakdown**: pick a month (or All time) and see every spending category ranked, with dollars, % of that month's spending and a bar. Pick a category next to it to list the transactions that make up that number (biggest first, with your notes). Further right, a month-by-category % grid shaded like a heat map
 - **Charts**: pick any month range (e.g. the last 3 months, or March to June) to see stacked monthly spending for your top 7 categories in that range, income vs spending with the difference shown as a Saved (aqua) or Overspent (red) bar, and two pies side by side to compare any two months, each slice labeled with its name and %
 - **Rules**: your own "merchant → category" rules, editable from any computer
 
