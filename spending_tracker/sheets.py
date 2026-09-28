@@ -11,6 +11,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import gspread
+from gspread.http_client import BackOffHTTPClient
 
 from .categorize import (ALL_CATEGORIES, DEFAULT_RULES_PATH, INCOME_CATEGORIES, UNCATEGORIZED,
                          is_income, is_spending, load_rules)
@@ -51,12 +52,14 @@ class SheetStore:
     def __init__(self, cfg: dict):
         if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"):
             # Scheduled runs pass the key's contents as a secret instead of a file.
-            gc = gspread.service_account_from_dict(json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]))
+            gc = gspread.service_account_from_dict(json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]),
+                                                   http_client=BackOffHTTPClient)
         else:
             creds = Path(cfg["credentials"]).expanduser()
             if not creds.is_absolute():
                 creds = Path(__file__).resolve().parent.parent / creds
-            gc = gspread.service_account(filename=str(creds))
+            # Retries with backoff when Google's per-minute write quota runs out.
+            gc = gspread.service_account(filename=str(creds), http_client=BackOffHTTPClient)
         self.ss = gc.open_by_key(cfg["sheet_id"])
         self.tx = self._tab(TX, rows=1000, cols=len(HEADERS))
 
@@ -135,9 +138,14 @@ class SheetStore:
              t.account, t.chase_category, t.chase_type, _text(t.month), _text(t.id), _text(t.note)]
             for t in txns
         ]
-        self.tx.clear()
-        self.tx.resize(rows=max(len(rows) + 50, 100), cols=len(HEADERS))
+        # Overwrite in place, then trim: if a request fails partway, the old rows are
+        # still there (clearing first could leave an empty ledger).
+        size = max(len(rows) + 50, 100)
+        self.tx.resize(rows=max(size, self.tx.row_count), cols=len(HEADERS))
         self.tx.update(values=rows, range_name="A1", value_input_option="USER_ENTERED")
+        if self.tx.row_count > len(rows):
+            self.tx.batch_clear([f"A{len(rows) + 1}:{_col(len(HEADERS))}{self.tx.row_count}"])
+        self.tx.resize(rows=size)
 
         categories = ALL_CATEGORIES + sorted({t.category for t in txns} - set(ALL_CATEGORIES) - {""})
         sid, n = self.tx.id, len(rows)
