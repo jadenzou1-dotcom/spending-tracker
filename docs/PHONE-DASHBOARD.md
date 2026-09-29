@@ -1,6 +1,6 @@
 # Phone dashboard: a link that only works for your own accounts
 
-[Overview](../README.md) · [Setup](SETUP.md) · [Features & commands](FEATURES.md) · **Phone dashboard** · [History](HISTORY.md)
+[Overview](../README.md) · [Setup](SETUP.md) · [Features & commands](FEATURES.md) · **Phone dashboard** · [History](HISTORY.md) · [Live demo](DEMO.md)
 
 The dashboard started as a page served from `127.0.0.1`, which is useless on a phone. The goal was to open it on a phone with live data, **without hosting anything, without a domain, and without exposing bank transactions to anyone who gets hold of the URL**. There was one extra constraint: the phone is signed in to a *different* personal Google account than the one that owns the Sheet.
 

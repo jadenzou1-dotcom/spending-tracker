@@ -6,7 +6,7 @@ Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Chart
 - Every change to code, rules.default.csv or docs gets committed **and pushed** to GitHub (`origin main`) in the same turn, so the local folder and the GitHub repo never drift. "Commit" means commit and push.
 - Commits are authored by the user's own git identity (Jaden Zou); end each message with the `Co-Authored-By: Claude ...` trailer.
 - When behavior, commands or layout change, update the docs (README.md, docs/*.md) and this file before committing. Don't leave old wording behind. Notable decisions and dead ends go in docs/HISTORY.md (timeline + "What didn't work").
-- When the dashboard or Sheet layout changes visibly, rerun `.venv/bin/python tools/make_demo.py --shots` so `examples/demo/`, `docs/demo/` and `docs/images/` match.
+- When the dashboard or Sheet layout changes visibly, rerun `.venv/bin/python tools/make_demo.py --shots --sheet 1ewAz3ph69PqMhJkR85uOpalluf4-KS3Aw70xpjA5lgA` so `examples/demo/`, `docs/demo/`, `docs/images/` and the public demo Sheet match (docs/DEMO.md). The demo Sheet's Apps Script uses `tools/apps_script.py ... --demo` (runs as owner for anyone, `DEMO = true` so `saveGoals` never writes); after template changes, re-paste Index there too.
 - Before committing, run `git status` and make sure nothing personal is staged (see Privacy).
 
 ## Dashboard (where analysis lives)

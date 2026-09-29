@@ -1,6 +1,6 @@
 # History: how it got here, including what didn't work
 
-[Overview](../README.md) · [Setup](SETUP.md) · [Features & commands](FEATURES.md) · [Phone dashboard](PHONE-DASHBOARD.md) · **History**
+[Overview](../README.md) · [Setup](SETUP.md) · [Features & commands](FEATURES.md) · [Phone dashboard](PHONE-DASHBOARD.md) · **History** · [Live demo](DEMO.md)
 
 The project went from a CSV importer to an automated tracker with a phone dashboard over a few days (September 26–28, 2026), built with [Claude Code](https://claude.com/claude-code). Several ideas were tried and dropped along the way. They're written up here because the reasons behind the current design are mostly in the dead ends.
 

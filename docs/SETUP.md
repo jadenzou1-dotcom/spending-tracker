@@ -1,6 +1,6 @@
 # Setup
 
-[Overview](../README.md) · **Setup** · [Features & commands](FEATURES.md) · [Phone dashboard](PHONE-DASHBOARD.md) · [History](HISTORY.md)
+[Overview](../README.md) · **Setup** · [Features & commands](FEATURES.md) · [Phone dashboard](PHONE-DASHBOARD.md) · [History](HISTORY.md) · [Live demo](DEMO.md)
 
 Everything here runs on free tiers: Google Cloud (no billing), Plaid's Trial plan, GitHub Actions and Apps Script. Each part is optional after step 1. Stop wherever you like.
 
@@ -21,6 +21,7 @@ git clone https://github.com/jadenzou1-dotcom/spending-tracker.git
 cd spending-tracker
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python tracker.py --local import examples/demo/Chase*.csv
+cp examples/demo/goals.csv data/goals.csv
 .venv/bin/python tracker.py --local dashboard
 ```
 

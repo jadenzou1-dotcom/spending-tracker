@@ -10,6 +10,10 @@
  * produced by `tools/apps_script.py index`.
  */
 
+// true only in the public demo (fake data, runs as the owner for anyone, never writes).
+// `tools/apps_script.py code --demo` flips it; see docs/DEMO.md.
+const DEMO = false;
+
 function doGet() {
   let data;
   try {
@@ -45,7 +49,7 @@ function loadData_() {
                 cat: cat, note: NOTE >= 0 ? r[NOTE] : '', kind: income ? 'income' : 'spending' });
   }
   const built = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm');
-  return { built: built, txns: txns, goals: readGoals_(ss), token: '', remote: 'apps_script' };
+  return { built: built, txns: txns, goals: readGoals_(ss), token: '', remote: 'apps_script', demo: DEMO };
 }
 
 // Goals tab: B1 = estimated monthly income; rows from 4 = Group | Goal % | categories.
@@ -63,6 +67,7 @@ function readGoals_(ss) {
 
 // Called by the page's Budget view. Mirrors clean_goals() in spending_tracker/dashboard.py.
 function saveGoals(raw) {
+  if (DEMO) throw new Error('The demo is read-only.');
   // Plain text only: a leading = + - @ would make the Sheet treat it as a formula.
   const text = (s, n) => String(s == null ? '' : s).replace(/,/g, ' ').trim().replace(/^[=+\-@]+/, '').slice(0, n);
   const groups = [], taken = {};

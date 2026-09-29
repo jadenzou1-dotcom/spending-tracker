@@ -508,6 +508,7 @@ function changed() {
   const status = document.getElementById("save-status");
   const done = ok => { status.textContent = ok ? "Saved to your Sheet" : "Couldn't save. Reload and try again."; status.className = ok ? "muted" : "bad"; };
   // Inside the Apps Script web app, save through the Sheet; locally, through tracker.py dashboard.
+  if (DATA.demo) { status.textContent = "Demo: try anything; edits aren't saved."; return; }
   const viaSheet = DATA.remote === "apps_script" && window.google && google.script && google.script.run;
   if (!viaSheet && !DATA.token) { status.textContent = "Static page: changes aren't saved. Run tracker.py dashboard to edit goals."; return; }
   status.textContent = "Saving…"; status.className = "muted";

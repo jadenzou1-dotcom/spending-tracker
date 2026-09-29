@@ -3,6 +3,7 @@ real pipeline, and write what each part of the tracker would show.
 
   .venv/bin/python tools/make_demo.py            rebuild examples/demo/ and docs/demo/
   .venv/bin/python tools/make_demo.py --shots    also redo docs/images/*.png (needs Google Chrome)
+  .venv/bin/python tools/make_demo.py --sheet ID also fill that Google Sheet (the public demo, docs/DEMO.md)
 
 Everything here is invented (names, merchants' store numbers, amounts). Outputs:
   examples/demo/Chase1234_Activity_*.csv, Chase5678_Activity_*.csv   fake bank exports
@@ -399,6 +400,25 @@ def screenshots():
     shoot(sheet, IMAGES / "sheet-goals.png", 1280, 360, hash_="#goals")
 
 
+def fill_sheet(sheet_id: str, txns) -> None:
+    """Write the demo into a Google Sheet shared with the service account, through the
+    same code a real import uses. Refuses the Sheet named in config.json (your real one)."""
+    import json
+    from spending_tracker.sheets import RULES, SheetStore
+    cfg_path = ROOT / "config.json"
+    cfg = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
+    if sheet_id == cfg.get("sheet_id"):
+        raise SystemExit("That's the Sheet in config.json, your real one. Give the demo Sheet's ID.")
+    store = SheetStore({"sheet_id": sheet_id, "credentials": cfg.get("credentials", "service_account.json")})
+    rules = store._tab(RULES, rows=50, cols=2)
+    rules.clear()
+    rules.update(values=[["pattern", "category"], *map(list, PERSONAL_RULES)], range_name="A1", value_input_option="RAW")
+    rules.freeze(rows=1)
+    store.write(txns)
+    store.write_goals(GOALS)
+    print(f"Filled https://docs.google.com/spreadsheets/d/{sheet_id}")
+
+
 def main():
     rng = random.Random(7)
     paths = write_exports(*build_exports(rng))
@@ -406,10 +426,13 @@ def main():
     summary, n_income = summary_rows(txns)
     write_tables(txns, summary)
     DOCS.mkdir(parents=True, exist_ok=True)
-    page = re.sub(r'"built":"[^"]*"', '"built":"2026-09-28 08:00"', dashboard.page(txns, GOALS), count=1)
+    # Marked as a demo so Budget edits say they aren't saved.
+    page = re.sub(r'"built":"[^"]*"', '"built":"2026-09-28 08:00","demo":true', dashboard.page(txns, GOALS), count=1)
     (DOCS / "dashboard.html").write_text(page, encoding="utf-8")
     (DOCS / "sheet.html").write_text(sheet_html(txns, summary, n_income, PERSONAL_RULES, GOALS), encoding="utf-8")
     print(f"{len(txns)} ledger rows ({stats['cancelled_pairs']} cancelled pair) -> examples/demo/, docs/demo/")
+    if "--sheet" in sys.argv:
+        fill_sheet(sys.argv[sys.argv.index("--sheet") + 1], txns)
     if "--shots" in sys.argv:
         screenshots()
 

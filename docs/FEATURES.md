@@ -1,6 +1,6 @@
 # Features & commands
 
-[Overview](../README.md) · [Setup](SETUP.md) · **Features & commands** · [Phone dashboard](PHONE-DASHBOARD.md) · [History](HISTORY.md)
+[Overview](../README.md) · [Setup](SETUP.md) · **Features & commands** · [Phone dashboard](PHONE-DASHBOARD.md) · [History](HISTORY.md) · [Live demo](DEMO.md)
 
 - [Commands](#commands)
 - [The Sheet's tabs](#the-sheets-tabs)
@@ -33,8 +33,8 @@ Helper scripts in `tools/`:
 | Script | What it does |
 |---|---|
 | `tools/plaid_link.py` | Connect a bank to Plaid once and store the access token in the Keychain |
-| `tools/apps_script.py code\|index\|manifest [--print]` | Copy one Apps Script file to the clipboard for pasting (see [Setup §7](SETUP.md#7-dashboard-on-your-phone-optional)) |
-| `tools/make_demo.py [--shots]` | Rebuild the fake demo data in `examples/demo/` and `docs/demo/`, and with `--shots` the screenshots in `docs/images/` (needs Google Chrome) |
+| `tools/apps_script.py code\|index\|manifest [--print] [--demo]` | Copy one Apps Script file to the clipboard for pasting (see [Setup §7](SETUP.md#7-dashboard-on-your-phone-optional)). `--demo` gives the public demo's read-only versions ([Live demo](DEMO.md)) |
+| `tools/make_demo.py [--shots] [--sheet ID]` | Rebuild the fake demo data in `examples/demo/` and `docs/demo/`. `--shots` redoes the screenshots in `docs/images/` (needs Google Chrome); `--sheet ID` fills the public demo spreadsheet |
 
 ## The Sheet's tabs
 
