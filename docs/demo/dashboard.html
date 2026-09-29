@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spending Dashboard</title>
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e4e2dc;
+  --hover: #f1efe9; --good: #1a8a5a; --bad: #d23f3e; --gray: #b3b2ab; --track: #ecebe6;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9c9b94; --line: #33332f;
+    --hover: #2a2a27; --good: #3fbf86; --bad: #f06a69; --gray: #5d5d58; --track: #2e2e2b; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9c9b94; --line: #33332f;
+  --hover: #2a2a27; --good: #3fbf86; --bad: #f06a69; --gray: #5d5d58; --track: #2e2e2b; --shadow: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; }
+main { max-width: 1280px; margin: 0 auto; padding: 24px 16px 64px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+h2 { font-size: 15px; margin: 0; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px; }
+section { margin-top: 16px; }
+.row { display: flex; align-items: center; gap: 8px; } .between { justify-content: space-between; } .wrap { flex-wrap: wrap; }
+select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+input[type=number] { width: 84px; text-align: right; }
+button { font: inherit; color: var(--ink); cursor: pointer; }
+.btn { font-size: 13px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
+.btn:hover { background: var(--hover); }
+.btn:disabled { opacity: .4; cursor: default; }
+.x { background: none; border: 0; color: var(--muted); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+.x:hover { background: var(--hover); color: var(--ink); }
+.tabs { display: inline-flex; background: var(--track); border-radius: 10px; padding: 3px; }
+.tabs button { border: 0; background: none; padding: 6px 16px; border-radius: 8px; color: var(--muted); font-weight: 500; }
+.tabs button.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.good { color: var(--good); } .bad { color: var(--bad); }
+.scroll { overflow-x: auto; }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px;
+  padding: 6px 8px; border-radius: 6px; opacity: 0; transition: opacity .08s; z-index: 10; white-space: nowrap; }
+
+/* trend */
+#trend-chart svg { display: block; }
+#trend-chart .seg, #trend-chart .hit { cursor: pointer; }
+.axis text { fill: var(--muted); font-size: 11px; }
+.axis line { stroke: var(--line); }
+.legend-inline { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend-inline i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* comparison table */
+table.cmp { border-collapse: separate; border-spacing: 0; width: 100%; }
+.cmp th, .cmp td { padding: 7px 12px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.cmp th:first-child, .cmp td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); z-index: 1; min-width: 170px; }
+.cmp thead th { border-bottom: 2px solid var(--line); vertical-align: bottom; }
+.cmp .mhead { display: flex; justify-content: flex-end; align-items: center; gap: 2px; }
+.cmp td.m { min-width: 150px; }
+.cmp tr.kpi td { font-weight: 600; }
+.cmp tr.kpi td:first-child { font-weight: 500; color: var(--muted); }
+.cmp tr.gap td { border-bottom: 2px solid var(--line); padding: 2px; }
+.cmp tr.cat { cursor: pointer; }
+.cmp tr.cat:hover td { background: var(--hover); }
+.cmp tr.cat.sel td { background: var(--hover); }
+.cmp tr.cat.sel td:first-child { box-shadow: inset 3px 0 0 var(--ink); font-weight: 600; }
+.cmp .pct { color: var(--muted); font-size: 12px; display: inline-block; width: 36px; }
+.cmp .bar { height: 4px; background: var(--track); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.cmp .bar i { display: block; height: 100%; border-radius: 2px; }
+.cmp .none { color: var(--line); }
+.cmp td.donut { padding: 4px 12px 8px; }
+.cmp td.donut svg { width: 96px; height: 96px; display: inline-block; }
+.cmp td.donut path { stroke: var(--panel); stroke-width: 1.5; }
+
+/* transactions */
+.cols { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(300px, 1fr); gap: 16px; overflow-x: auto; margin-top: 8px; }
+.tx { width: 100%; border-collapse: collapse; }
+.tx td { padding: 6px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+.tx td.amt { text-align: right; white-space: nowrap; }
+.tx td.date { color: var(--muted); white-space: nowrap; width: 48px; }
+.tx .note, .tx .tag { color: var(--muted); font-size: 12px; }
+.refund { color: var(--good); }
+.empty { color: var(--muted); padding: 12px 4px; }
+
+/* budget */
+.controls { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
+.controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.controls input[type=number] { width: 120px; }
+.stack { display: grid; grid-template-columns: 64px 1fr; gap: 8px 12px; align-items: center; margin-top: 12px; }
+.stackbar { position: relative; height: 26px; border-radius: 6px; background: var(--track); display: flex; overflow: hidden; }
+.stackbar i { height: 100%; }
+.stackbar i + i { box-shadow: inset 1px 0 0 var(--panel); }
+.stackbar .save { background: repeating-linear-gradient(135deg, var(--good) 0 3px, transparent 3px 7px); opacity: .55; }
+table.goals { width: 100%; border-collapse: collapse; }
+.goals th { text-align: right; font-size: 12px; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 2px solid var(--line); white-space: nowrap; }
+.goals td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.goals th:first-child, .goals td:first-child { text-align: left; }
+.goals td.prog { width: 30%; min-width: 140px; }
+.goals tr.sub td { color: var(--muted); font-size: 13px; padding-top: 4px; padding-bottom: 4px; background: var(--bg); }
+.goals tr.sub td:first-child { padding-left: 40px; }
+.goals tr.sub select { font-size: 12px; padding: 2px 6px; }
+.goals tr.savings td { border-top: 2px solid var(--line); }
+.goals .caret { background: none; border: 0; color: var(--muted); width: 20px; padding: 0; }
+.goals .gname { cursor: pointer; }
+.goals tr.total td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--line); }
+.goals .unit { width: 56px; }
+.track { position: relative; height: 10px; background: var(--track); border-radius: 5px; }
+.track .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+.track .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); border-radius: 1px; }
+#save-status { font-size: 12px; }
+.goals .mob { display: none; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.goals .mob .track { margin: 6px 0 4px; height: 8px; }
+@media (max-width: 600px) {
+  main { padding: 16px 12px 48px; }
+  .card { padding: 12px; }
+  .cmp th, .cmp td { padding: 6px 8px; }
+  .cmp th:first-child, .cmp td:first-child { min-width: 118px; max-width: 150px; white-space: normal; }
+  .cmp td.m { min-width: 104px; }
+  .cmp td.donut svg { width: 72px; height: 72px; }
+  .cmp select { max-width: 110px; }
+  .goals td, .goals th { padding: 6px 5px; }
+  .goals input[type=number] { width: 58px; }
+  /* Phones: spent / goal / bar move under the group name; the wide columns hide. */
+  .goals tr > :nth-child(n+3):nth-child(-n+6) { display: none; }
+  .goals td:first-child { white-space: normal; }
+  .goals .mob { display: block; }
+  .goals .gname .small { display: none; }
+  .goals tr.sub select { max-width: 96px; }
+  .goals tr > :nth-child(7) { white-space: normal; min-width: 64px; }
+  .goals tr > :nth-child(8) { display: none; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Spending</h1>
+      <div class="muted small" id="built"></div>
+    </div>
+    <div class="row">
+      <div class="tabs" role="tablist">
+        <button data-view="compare" role="tab">Compare</button>
+        <button data-view="budget" role="tab">Budget</button>
+      </div>
+      <button class="btn" id="theme" title="Switch light / dark">Theme</button>
+    </div>
+  </header>
+
+  <div id="view-compare">
+    <div class="card">
+      <div class="row between wrap" style="margin-bottom:6px">
+        <h2>Spending by month</h2>
+        <div class="legend-inline" id="trend-legend"></div>
+      </div>
+      <div class="muted small" style="margin-bottom:6px">Click a month to add it to the comparison (or take it out). Click a colored segment to pick that category too.</div>
+      <div id="trend-chart"></div>
+    </div>
+
+    <section class="card">
+      <div class="row between wrap" style="margin-bottom:8px">
+        <h2>Compare months</h2>
+        <span class="muted small">Click a category to see its transactions</span>
+      </div>
+      <div class="scroll"><table class="cmp" id="cmp"></table></div>
+    </section>
+
+    <section class="card">
+      <div class="row between wrap" style="gap:12px">
+        <div class="row"><span class="dot" id="detail-dot"></span><h2 id="detail-title"></h2>
+          <button class="btn" id="clear" hidden>Show all categories</button></div>
+        <input type="search" id="q" placeholder="Filter transactions…" aria-label="Filter transactions">
+      </div>
+      <div class="cols" id="lists"></div>
+    </section>
+  </div>
+
+  <div id="view-budget" hidden>
+    <div class="card">
+      <div class="controls">
+        <label>Month<select id="b-month"></select></label>
+        <label>Estimated monthly income (take-home)<input type="number" id="b-income" min="0" step="any" placeholder="e.g. 4400"></label>
+        <div class="small muted" id="b-actual-income"></div>
+        <div style="flex:1"></div>
+        <div id="save-status" class="muted"></div>
+      </div>
+      <div class="stack" id="b-stack"></div>
+    </div>
+    <section class="card scroll">
+      <table class="goals" id="b-table"></table>
+    </section>
+  </div>
+</main>
+<div id="tip"></div>
+
+<script>
+const DATA = {"built":"2026-09-28 08:00","txns":[{"d":"2026-09-26","m":"2026-09","desc":"TRADER JOE S #552","amt":-39.99,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-09-25","m":"2026-09","desc":"PP*KESTREL GOODS 09/25","amt":-42.0,"cat":"Shopping","note":"Birthday present for Riley","kind":"spending"},{"d":"2026-09-24","m":"2026-09","desc":"XFINITY INTERNET","amt":-70.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-09-23","m":"2026-09","desc":"7-ELEVEN 35512","amt":-7.37,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-09-22","m":"2026-09","desc":"EVERSOURCE ENERGY BILL PAYMT","amt":-63.31,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-09-21","m":"2026-09","desc":"CLAUDE.AI SUBSCRIPTION","amt":-20.0,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-09-20","m":"2026-09","desc":"TRADER JOE S #552","amt":-67.39,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-09-19","m":"2026-09","desc":"SQ *HONEYCOMB MARKET 09/19","amt":-18.5,"cat":"Uncategorized","note":"","kind":"spending"},{"d":"2026-09-18","m":"2026-09","desc":"SWEETGREEN CAMBRIDGE","amt":-14.67,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-09-18","m":"2026-09","desc":"VERIZON WRLS P007","amt":-65.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-09-17","m":"2026-09","desc":"TATTE BAKERY CAFE","amt":-12.08,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-09-17","m":"2026-09","desc":"DD *DOORDASH THAIKITCHEN","amt":-36.1,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-09-17","m":"2026-09","desc":"UBER *TRIP HELP.UBER.COM","amt":-20.92,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-09-16","m":"2026-09","desc":"AMAZON MKTPL*ZX81Q2","amt":-25.76,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-09-15","m":"2026-09","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-09-15","m":"2026-09","desc":"AMAZON MKTPL*ZX81Q2","amt":-17.95,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-09-14","m":"2026-09","desc":"TARGET 00012345","amt":-44.54,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-09-14","m":"2026-09","desc":"CRUNCH FITNESS","amt":-29.99,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-09-13","m":"2026-09","desc":"CVS/PHARMACY #01234","amt":-25.44,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-09-10","m":"2026-09","desc":"TATTE BAKERY CAFE","amt":-11.03,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-09-09","m":"2026-09","desc":"SWEETGREEN CAMBRIDGE","amt":-15.49,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-09-09","m":"2026-09","desc":"CAVA 0421","amt":-12.2,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-09-09","m":"2026-09","desc":"DD *DOORDASH THAIKITCHEN","amt":-30.25,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-09-09","m":"2026-09","desc":"SPOTIFY USA","amt":-11.99,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-09-04","m":"2026-09","desc":"WHOLE FOODS MKT #10233","amt":-34.79,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-09-04","m":"2026-09","desc":"CAVA 0421","amt":-15.88,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-09-03","m":"2026-09","desc":"[split] Zelle payment from JORDAN LEE 8809011234","amt":60.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-09-03","m":"2026-09","desc":"[split] Zelle payment from JORDAN LEE 8809011234","amt":1075.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-09-03","m":"2026-09","desc":"TRADER JOE S #552","amt":-40.37,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-09-03","m":"2026-09","desc":"NETFLIX.COM","amt":-15.49,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-09-02","m":"2026-09","desc":"SWEETGREEN CAMBRIDGE","amt":-15.11,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-09-01","m":"2026-09","desc":"Zelle payment to MAPLE ST PROPERTIES 202600901","amt":-2150.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-09-01","m":"2026-09","desc":"TRADER JOE S #552","amt":-57.18,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-09-01","m":"2026-09","desc":"UBER *TRIP HELP.UBER.COM","amt":-11.33,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-08-31","m":"2026-08","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-08-30","m":"2026-08","desc":"VENMO PAYMENT 1039554421","amt":-36.0,"cat":"Payments to People","note":"Concert tickets, Sam paid me back in cash","kind":"spending"},{"d":"2026-08-30","m":"2026-08","desc":"AMAZON MKTPL*ZX81Q2","amt":-56.15,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-08-30","m":"2026-08","desc":"STEAMGAMES.COM 4259522985","amt":-28.66,"cat":"Gaming","note":"","kind":"spending"},{"d":"2026-08-29","m":"2026-08","desc":"SWEETGREEN CAMBRIDGE","amt":-13.55,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-08-29","m":"2026-08","desc":"AMAZON MKTPL*ZX81Q2","amt":-17.87,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-08-25","m":"2026-08","desc":"CVS/PHARMACY #01234","amt":-9.46,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-08-24","m":"2026-08","desc":"XFINITY INTERNET","amt":-70.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-08-24","m":"2026-08","desc":"CAVA 0421","amt":-15.81,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-08-24","m":"2026-08","desc":"DD *DOORDASH THAIKITCHEN","amt":-30.59,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-08-23","m":"2026-08","desc":"SWEETGREEN CAMBRIDGE","amt":-15.57,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-08-22","m":"2026-08","desc":"EVERSOURCE ENERGY BILL PAYMT","amt":-84.15,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-08-22","m":"2026-08","desc":"TRADER JOE S #552","amt":-39.07,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-08-22","m":"2026-08","desc":"TATTE BAKERY CAFE","amt":-12.66,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-08-21","m":"2026-08","desc":"CLAUDE.AI SUBSCRIPTION","amt":-20.0,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-08-19","m":"2026-08","desc":"Zelle payment from MOM 7708015555","amt":150.0,"cat":"Family Income","note":"","kind":"income"},{"d":"2026-08-19","m":"2026-08","desc":"GREAT CLIPS #4410","amt":-26.97,"cat":"Personal Care","note":"","kind":"spending"},{"d":"2026-08-18","m":"2026-08","desc":"VERIZON WRLS P007","amt":-65.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-08-17","m":"2026-08","desc":"TATTE BAKERY CAFE","amt":-9.23,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-08-15","m":"2026-08","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-08-15","m":"2026-08","desc":"TRADER JOE S #552","amt":-42.54,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-08-15","m":"2026-08","desc":"UBER *EATS PENDING","amt":-26.49,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-08-14","m":"2026-08","desc":"TRADER JOE S #552","amt":-33.59,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-08-14","m":"2026-08","desc":"CRUNCH FITNESS","amt":-29.99,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-08-13","m":"2026-08","desc":"CAVA 0421","amt":-15.54,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-08-13","m":"2026-08","desc":"AMC ASSEMBLY ROW 12","amt":-17.19,"cat":"Entertainment","note":"","kind":"spending"},{"d":"2026-08-12","m":"2026-08","desc":"SWEETGREEN CAMBRIDGE","amt":-13.57,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-08-12","m":"2026-08","desc":"DD *DOORDASH THAIKITCHEN","amt":-29.73,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-08-11","m":"2026-08","desc":"UBER *TRIP HELP.UBER.COM","amt":-20.31,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-08-10","m":"2026-08","desc":"UBER *TRIP HELP.UBER.COM","amt":-20.22,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-08-09","m":"2026-08","desc":"7-ELEVEN 35512","amt":-3.35,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-08-09","m":"2026-08","desc":"SPOTIFY USA","amt":-11.99,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-08-06","m":"2026-08","desc":"TATTE BAKERY CAFE","amt":-11.65,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-08-04","m":"2026-08","desc":"WHOLE FOODS MKT #10233","amt":-51.19,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-08-03","m":"2026-08","desc":"[split] Zelle payment from JORDAN LEE 8808011234","amt":60.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-08-03","m":"2026-08","desc":"[split] Zelle payment from JORDAN LEE 8808011234","amt":1075.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-08-03","m":"2026-08","desc":"TRADER JOE S #552","amt":-37.78,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-08-03","m":"2026-08","desc":"NETFLIX.COM","amt":-15.49,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-08-02","m":"2026-08","desc":"TARGET 00012345","amt":-55.77,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-08-01","m":"2026-08","desc":"Zelle payment to MAPLE ST PROPERTIES 202600801","amt":-2150.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-07-31","m":"2026-07","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-07-30","m":"2026-07","desc":"7-ELEVEN 35512","amt":-4.56,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-07-29","m":"2026-07","desc":"SWEETGREEN CAMBRIDGE","amt":-14.83,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-26","m":"2026-07","desc":"TATTE BAKERY CAFE","amt":-7.2,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-26","m":"2026-07","desc":"AMC ASSEMBLY ROW 12","amt":-19.82,"cat":"Entertainment","note":"","kind":"spending"},{"d":"2026-07-25","m":"2026-07","desc":"AMAZON MKTPL*ZX81Q2","amt":-62.06,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-07-24","m":"2026-07","desc":"XFINITY INTERNET","amt":-70.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-07-23","m":"2026-07","desc":"GREAT CLIPS #4410","amt":-27.14,"cat":"Personal Care","note":"","kind":"spending"},{"d":"2026-07-22","m":"2026-07","desc":"EVERSOURCE ENERGY BILL PAYMT","amt":-65.7,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-07-21","m":"2026-07","desc":"CLAUDE.AI SUBSCRIPTION","amt":-20.0,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-07-20","m":"2026-07","desc":"TATTE BAKERY CAFE","amt":-6.03,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-20","m":"2026-07","desc":"DD *DOORDASH THAIKITCHEN","amt":-37.05,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-07-19","m":"2026-07","desc":"SWEETGREEN CAMBRIDGE","amt":-16.26,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-18","m":"2026-07","desc":"DD *DOORDASH THAIKITCHEN","amt":-25.11,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-07-18","m":"2026-07","desc":"7-ELEVEN 35512","amt":-8.36,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-07-18","m":"2026-07","desc":"VERIZON WRLS P007","amt":-65.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-07-17","m":"2026-07","desc":"SWEETGREEN CAMBRIDGE","amt":-14.68,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-17","m":"2026-07","desc":"CAVA 0421","amt":-12.52,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-17","m":"2026-07","desc":"UBER *EATS PENDING","amt":-28.44,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-07-17","m":"2026-07","desc":"CVS/PHARMACY #01234","amt":-10.79,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-07-15","m":"2026-07","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-07-15","m":"2026-07","desc":"TATTE BAKERY CAFE","amt":-12.21,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-15","m":"2026-07","desc":"AMAZON MKTPL*ZX81Q2","amt":-43.46,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-07-14","m":"2026-07","desc":"CRUNCH FITNESS","amt":-29.99,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-07-12","m":"2026-07","desc":"PORTLAND LOBSTER CO","amt":-58.2,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-11","m":"2026-07","desc":"TRADER JOE S #552","amt":-39.93,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-07-11","m":"2026-07","desc":"TARGET 00012345","amt":-42.56,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-07-10","m":"2026-07","desc":"AIRBNB * HMQ2ZX8","amt":-412.75,"cat":"Travel","note":"","kind":"spending"},{"d":"2026-07-09","m":"2026-07","desc":"UBER *TRIP HELP.UBER.COM","amt":-11.76,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-07-09","m":"2026-07","desc":"SPOTIFY USA","amt":-11.99,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-07-08","m":"2026-07","desc":"TRADER JOE S #552","amt":-63.13,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-07-07","m":"2026-07","desc":"TRADER JOE S #552","amt":-66.0,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-07-07","m":"2026-07","desc":"TRADER JOE S #552","amt":-29.29,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-07-07","m":"2026-07","desc":"TRADER JOE S #552","amt":-41.48,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-07-05","m":"2026-07","desc":"WHOLE FOODS MKT #10233","amt":-20.25,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-07-05","m":"2026-07","desc":"CAVA 0421","amt":-14.09,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-07-04","m":"2026-07","desc":"UBER *TRIP HELP.UBER.COM","amt":-26.9,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-07-03","m":"2026-07","desc":"[split] Zelle payment from JORDAN LEE 8807011234","amt":60.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-07-03","m":"2026-07","desc":"[split] Zelle payment from JORDAN LEE 8807011234","amt":1075.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-07-03","m":"2026-07","desc":"NETFLIX.COM","amt":-15.49,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-07-02","m":"2026-07","desc":"UBER *TRIP HELP.UBER.COM","amt":-15.47,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-07-02","m":"2026-07","desc":"JETBLUE AIRWAYS 2792100","amt":-236.4,"cat":"Travel","note":"","kind":"spending"},{"d":"2026-07-01","m":"2026-07","desc":"Zelle payment to MAPLE ST PROPERTIES 202600701","amt":-2150.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-06-30","m":"2026-06","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-06-26","m":"2026-06","desc":"UBER *TRIP HELP.UBER.COM","amt":-28.03,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-06-24","m":"2026-06","desc":"XFINITY INTERNET","amt":-70.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-06-24","m":"2026-06","desc":"TRADER JOE S #552","amt":-64.95,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-06-24","m":"2026-06","desc":"SWEETGREEN CAMBRIDGE","amt":-16.95,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-06-24","m":"2026-06","desc":"7-ELEVEN 35512","amt":-6.9,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-06-22","m":"2026-06","desc":"EVERSOURCE ENERGY BILL PAYMT","amt":-63.29,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-06-22","m":"2026-06","desc":"DD *DOORDASH THAIKITCHEN","amt":-26.16,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-06-21","m":"2026-06","desc":"UBER *TRIP HELP.UBER.COM","amt":-16.99,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-06-21","m":"2026-06","desc":"CLAUDE.AI SUBSCRIPTION","amt":-20.0,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-06-20","m":"2026-06","desc":"TATTE BAKERY CAFE","amt":-12.72,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-06-19","m":"2026-06","desc":"TARGET 00012345","amt":-55.72,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-06-18","m":"2026-06","desc":"VERIZON WRLS P007","amt":-65.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-06-17","m":"2026-06","desc":"7-ELEVEN 35512","amt":-7.5,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-06-16","m":"2026-06","desc":"CAVA 0421","amt":-12.79,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-06-16","m":"2026-06","desc":"TATTE BAKERY CAFE","amt":-13.27,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-06-16","m":"2026-06","desc":"UBER *EATS PENDING","amt":-34.11,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-06-16","m":"2026-06","desc":"STEAMGAMES.COM 4259522985","amt":-28.0,"cat":"Gaming","note":"","kind":"spending"},{"d":"2026-06-15","m":"2026-06","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-06-15","m":"2026-06","desc":"SWEETGREEN CAMBRIDGE","amt":-16.23,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-06-15","m":"2026-06","desc":"AMAZON MKTPL*ZX81Q2","amt":-34.48,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-06-14","m":"2026-06","desc":"CRUNCH FITNESS","amt":-29.99,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-06-13","m":"2026-06","desc":"DD *DOORDASH THAIKITCHEN","amt":-38.08,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-06-12","m":"2026-06","desc":"TRADER JOE S #552","amt":-61.63,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-06-12","m":"2026-06","desc":"SWEETGREEN CAMBRIDGE","amt":-13.32,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-06-12","m":"2026-06","desc":"TATTE BAKERY CAFE","amt":-12.4,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-06-09","m":"2026-06","desc":"SPOTIFY USA","amt":-11.99,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-06-08","m":"2026-06","desc":"ATM WITHDRAWAL 004411 06/08 MASS AVE","amt":-60.0,"cat":"Cash","note":"","kind":"spending"},{"d":"2026-06-07","m":"2026-06","desc":"TRADER JOE S #552","amt":-51.81,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-06-07","m":"2026-06","desc":"WHOLE FOODS MKT #10233","amt":-43.62,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-06-07","m":"2026-06","desc":"CAVA 0421","amt":-13.93,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-06-06","m":"2026-06","desc":"AMAZON MKTPL*ZX81Q2","amt":-67.61,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-06-05","m":"2026-06","desc":"CVS/PHARMACY #01234","amt":-18.62,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-06-05","m":"2026-06","desc":"GREAT CLIPS #4410","amt":-24.13,"cat":"Personal Care","note":"","kind":"spending"},{"d":"2026-06-03","m":"2026-06","desc":"[split] Zelle payment from JORDAN LEE 8806011234","amt":60.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-06-03","m":"2026-06","desc":"[split] Zelle payment from JORDAN LEE 8806011234","amt":1075.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-06-03","m":"2026-06","desc":"AMAZON MKTPL*ZX81Q2","amt":-52.59,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-06-03","m":"2026-06","desc":"NETFLIX.COM","amt":-15.49,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-06-01","m":"2026-06","desc":"Zelle payment to MAPLE ST PROPERTIES 202600601","amt":-2150.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-06-01","m":"2026-06","desc":"TRADER JOE S #552","amt":-64.35,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-05-31","m":"2026-05","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-05-31","m":"2026-05","desc":"TATTE BAKERY CAFE","amt":-8.78,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-05-31","m":"2026-05","desc":"AMAZON MKTPL*ZX81Q2","amt":-65.31,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-05-28","m":"2026-05","desc":"TRADER JOE S #552","amt":-63.88,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-05-28","m":"2026-05","desc":"TRADER JOE S #552","amt":-59.31,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-05-25","m":"2026-05","desc":"GREAT CLIPS #4410","amt":-27.02,"cat":"Personal Care","note":"","kind":"spending"},{"d":"2026-05-25","m":"2026-05","desc":"7-ELEVEN 35512","amt":-8.12,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-05-24","m":"2026-05","desc":"XFINITY INTERNET","amt":-70.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-05-23","m":"2026-05","desc":"UBER *TRIP HELP.UBER.COM","amt":-13.91,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-05-22","m":"2026-05","desc":"EVERSOURCE ENERGY BILL PAYMT","amt":-88.63,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-05-21","m":"2026-05","desc":"CVS/PHARMACY #01234","amt":-23.4,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-05-21","m":"2026-05","desc":"CLAUDE.AI SUBSCRIPTION","amt":-20.0,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-05-20","m":"2026-05","desc":"7-ELEVEN 35512","amt":-7.87,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-05-19","m":"2026-05","desc":"SWEETGREEN CAMBRIDGE","amt":-13.61,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-05-18","m":"2026-05","desc":"TRADER JOE S #552","amt":-46.05,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-05-18","m":"2026-05","desc":"VERIZON WRLS P007","amt":-65.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-05-16","m":"2026-05","desc":"DD *DOORDASH THAIKITCHEN","amt":-41.88,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-05-16","m":"2026-05","desc":"BEST BUY 00011122","amt":-349.99,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-05-15","m":"2026-05","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-05-15","m":"2026-05","desc":"DD *DOORDASH THAIKITCHEN","amt":-32.65,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-05-14","m":"2026-05","desc":"CRUNCH FITNESS","amt":-29.99,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-05-13","m":"2026-05","desc":"TRADER JOE S #552","amt":-46.13,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-05-13","m":"2026-05","desc":"WHOLE FOODS MKT #10233","amt":-20.3,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-05-12","m":"2026-05","desc":"CAVA 0421","amt":-14.45,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-05-12","m":"2026-05","desc":"TATTE BAKERY CAFE","amt":-9.79,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-05-12","m":"2026-05","desc":"AMAZON MKTPL*ZX81Q2","amt":-20.21,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-05-12","m":"2026-05","desc":"AMC ASSEMBLY ROW 12","amt":-22.18,"cat":"Entertainment","note":"","kind":"spending"},{"d":"2026-05-09","m":"2026-05","desc":"UBER *TRIP HELP.UBER.COM","amt":-19.62,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-05-09","m":"2026-05","desc":"STEAMGAMES.COM 4259522985","amt":-23.14,"cat":"Gaming","note":"","kind":"spending"},{"d":"2026-05-09","m":"2026-05","desc":"SPOTIFY USA","amt":-11.99,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-05-05","m":"2026-05","desc":"TATTE BAKERY CAFE","amt":-11.08,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-05-05","m":"2026-05","desc":"UBER *EATS PENDING","amt":-20.74,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-05-04","m":"2026-05","desc":"SWEETGREEN CAMBRIDGE","amt":-14.36,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-05-03","m":"2026-05","desc":"[split] Zelle payment from JORDAN LEE 8805011234","amt":60.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-05-03","m":"2026-05","desc":"[split] Zelle payment from JORDAN LEE 8805011234","amt":1075.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-05-03","m":"2026-05","desc":"WHOLE FOODS MKT #10233","amt":-54.43,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-05-03","m":"2026-05","desc":"CAVA 0421","amt":-15.5,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-05-03","m":"2026-05","desc":"NETFLIX.COM","amt":-15.49,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-05-02","m":"2026-05","desc":"SWEETGREEN CAMBRIDGE","amt":-13.41,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-05-01","m":"2026-05","desc":"Zelle payment to MAPLE ST PROPERTIES 202600501","amt":-2150.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-05-01","m":"2026-05","desc":"TARGET 00012345","amt":-49.12,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-04-30","m":"2026-04","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-04-27","m":"2026-04","desc":"TRADER JOE S #552","amt":-42.43,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-04-27","m":"2026-04","desc":"WHOLE FOODS MKT #10233","amt":-21.46,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-04-27","m":"2026-04","desc":"CAVA 0421","amt":-13.78,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-04-24","m":"2026-04","desc":"XFINITY INTERNET","amt":-70.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-04-23","m":"2026-04","desc":"TRADER JOE S #552","amt":-44.11,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-04-23","m":"2026-04","desc":"SWEETGREEN CAMBRIDGE","amt":-15.66,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-04-23","m":"2026-04","desc":"CAVA 0421","amt":-13.54,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-04-23","m":"2026-04","desc":"7-ELEVEN 35512","amt":-8.16,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-04-22","m":"2026-04","desc":"EVERSOURCE ENERGY BILL PAYMT","amt":-86.11,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-04-21","m":"2026-04","desc":"CLAUDE.AI SUBSCRIPTION","amt":-20.0,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-04-20","m":"2026-04","desc":"GREAT CLIPS #4410","amt":-27.4,"cat":"Personal Care","note":"","kind":"spending"},{"d":"2026-04-20","m":"2026-04","desc":"7-ELEVEN 35512","amt":-6.93,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-04-19","m":"2026-04","desc":"Zelle payment from MOM 7704015555","amt":150.0,"cat":"Family Income","note":"","kind":"income"},{"d":"2026-04-19","m":"2026-04","desc":"TRADER JOE S #552","amt":-64.3,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-04-18","m":"2026-04","desc":"UBER *TRIP HELP.UBER.COM","amt":-16.0,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-04-18","m":"2026-04","desc":"VERIZON WRLS P007","amt":-65.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-04-16","m":"2026-04","desc":"TRADER JOE S #552","amt":-54.68,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-04-16","m":"2026-04","desc":"UBER *EATS PENDING","amt":-20.37,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-04-15","m":"2026-04","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-04-14","m":"2026-04","desc":"CRUNCH FITNESS","amt":-29.99,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-04-13","m":"2026-04","desc":"AMAZON MKTPL*ZX81Q2","amt":-65.63,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-04-12","m":"2026-04","desc":"TATTE BAKERY CAFE","amt":-7.34,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-04-12","m":"2026-04","desc":"AMAZON MKTPL*ZX81Q2","amt":-50.23,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-04-10","m":"2026-04","desc":"SWEETGREEN CAMBRIDGE","amt":-15.59,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-04-10","m":"2026-04","desc":"DD *DOORDASH THAIKITCHEN","amt":-26.33,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-04-09","m":"2026-04","desc":"AMAZON MKTPL*ZX81Q2","amt":-51.56,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-04-09","m":"2026-04","desc":"STEAMGAMES.COM 4259522985","amt":-14.87,"cat":"Gaming","note":"","kind":"spending"},{"d":"2026-04-09","m":"2026-04","desc":"SPOTIFY USA","amt":-11.99,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-04-08","m":"2026-04","desc":"DD *DOORDASH THAIKITCHEN","amt":-31.16,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-04-06","m":"2026-04","desc":"TARGET 00012345","amt":-21.81,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-04-05","m":"2026-04","desc":"UBER *TRIP HELP.UBER.COM","amt":-25.75,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-04-04","m":"2026-04","desc":"TATTE BAKERY CAFE","amt":-9.95,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-04-03","m":"2026-04","desc":"[split] Zelle payment from JORDAN LEE 8804011234","amt":60.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-04-03","m":"2026-04","desc":"[split] Zelle payment from JORDAN LEE 8804011234","amt":1075.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-04-03","m":"2026-04","desc":"NETFLIX.COM","amt":-15.49,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-04-02","m":"2026-04","desc":"SWEETGREEN CAMBRIDGE","amt":-15.92,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-04-01","m":"2026-04","desc":"Zelle payment to MAPLE ST PROPERTIES 202600401","amt":-2150.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-04-01","m":"2026-04","desc":"TATTE BAKERY CAFE","amt":-13.53,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-04-01","m":"2026-04","desc":"CVS/PHARMACY #01234","amt":-16.21,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-03-31","m":"2026-03","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-03-27","m":"2026-03","desc":"DD *DOORDASH THAIKITCHEN","amt":-36.28,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-03-24","m":"2026-03","desc":"XFINITY INTERNET","amt":-70.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-03-24","m":"2026-03","desc":"STEAMGAMES.COM 4259522985","amt":-20.71,"cat":"Gaming","note":"","kind":"spending"},{"d":"2026-03-23","m":"2026-03","desc":"TARGET 00012345","amt":-50.09,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-03-22","m":"2026-03","desc":"EVERSOURCE ENERGY BILL PAYMT","amt":-83.39,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-03-21","m":"2026-03","desc":"CLAUDE.AI SUBSCRIPTION","amt":-20.0,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-03-19","m":"2026-03","desc":"TRADER JOE S #552","amt":-30.67,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-03-19","m":"2026-03","desc":"SWEETGREEN CAMBRIDGE","amt":-13.5,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-03-19","m":"2026-03","desc":"UBER *TRIP HELP.UBER.COM","amt":-12.07,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-03-19","m":"2026-03","desc":"AMAZON MKTPL*ZX81Q2","amt":-63.71,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-03-18","m":"2026-03","desc":"TRADER JOE S #552","amt":-32.33,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-03-18","m":"2026-03","desc":"TATTE BAKERY CAFE","amt":-12.87,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-03-18","m":"2026-03","desc":"TATTE BAKERY CAFE","amt":-6.94,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-03-18","m":"2026-03","desc":"UBER *TRIP HELP.UBER.COM","amt":-18.7,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-03-18","m":"2026-03","desc":"VERIZON WRLS P007","amt":-65.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-03-15","m":"2026-03","desc":"NORTHWIND LABS PAYROLL PPD ID: 9000000001","amt":2210.43,"cat":"Work Income","note":"","kind":"income"},{"d":"2026-03-14","m":"2026-03","desc":"WHOLE FOODS MKT #10233","amt":-20.58,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-03-14","m":"2026-03","desc":"SWEETGREEN CAMBRIDGE","amt":-13.24,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-03-14","m":"2026-03","desc":"7-ELEVEN 35512","amt":-3.24,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-03-14","m":"2026-03","desc":"CRUNCH FITNESS","amt":-29.99,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-03-13","m":"2026-03","desc":"CAVA 0421","amt":-12.2,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-03-12","m":"2026-03","desc":"UBER *EATS PENDING","amt":-20.66,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-03-12","m":"2026-03","desc":"AMAZON MKTPL*ZX81Q2","amt":-28.79,"cat":"Shopping","note":"","kind":"spending"},{"d":"2026-03-10","m":"2026-03","desc":"TATTE BAKERY CAFE","amt":-9.35,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-03-10","m":"2026-03","desc":"CVS/PHARMACY #01234","amt":-16.98,"cat":"Health & Fitness","note":"","kind":"spending"},{"d":"2026-03-09","m":"2026-03","desc":"SPOTIFY USA","amt":-11.99,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-03-08","m":"2026-03","desc":"SWEETGREEN CAMBRIDGE","amt":-15.52,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-03-07","m":"2026-03","desc":"UBER *TRIP HELP.UBER.COM","amt":-19.94,"cat":"Transport","note":"","kind":"spending"},{"d":"2026-03-05","m":"2026-03","desc":"TRADER JOE S #552","amt":-46.16,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-03-05","m":"2026-03","desc":"7-ELEVEN 35512","amt":-8.6,"cat":"Snacks","note":"","kind":"spending"},{"d":"2026-03-04","m":"2026-03","desc":"DD *DOORDASH THAIKITCHEN","amt":-34.47,"cat":"Food Delivery","note":"","kind":"spending"},{"d":"2026-03-03","m":"2026-03","desc":"[split] Zelle payment from JORDAN LEE 8803011234","amt":60.0,"cat":"Utilities & Phone","note":"","kind":"spending"},{"d":"2026-03-03","m":"2026-03","desc":"[split] Zelle payment from JORDAN LEE 8803011234","amt":1075.0,"cat":"Rent","note":"","kind":"spending"},{"d":"2026-03-03","m":"2026-03","desc":"AMC ASSEMBLY ROW 12","amt":-16.94,"cat":"Entertainment","note":"","kind":"spending"},{"d":"2026-03-03","m":"2026-03","desc":"NETFLIX.COM","amt":-15.49,"cat":"Subscriptions","note":"","kind":"spending"},{"d":"2026-03-02","m":"2026-03","desc":"TRADER JOE S #552","amt":-31.33,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-03-02","m":"2026-03","desc":"WHOLE FOODS MKT #10233","amt":-21.18,"cat":"Groceries","note":"","kind":"spending"},{"d":"2026-03-02","m":"2026-03","desc":"CAVA 0421","amt":-14.31,"cat":"Dining","note":"","kind":"spending"},{"d":"2026-03-01","m":"2026-03","desc":"Zelle payment to MAPLE ST PROPERTIES 202600301","amt":-2150.0,"cat":"Rent","note":"","kind":"spending"}],"goals":{"income":4400,"groups":[{"name":"Housing","pct":30,"cats":["Rent","Utilities & Phone"]},{"name":"Food","pct":15,"cats":["Groceries","Dining","Food Delivery","Snacks"]},{"name":"Getting around","pct":6,"cats":["Transport","Travel"]},{"name":"Subscriptions","pct":2,"cats":["Subscriptions"]},{"name":"Fun & everything else","pct":17,"cats":["*"]}]},"token":""};
+const PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#1ba3c6","#b5485d","#8a6d3b","#6f9e2c","#c05fd0"];
+const ALL = "All time";
+
+const spend = DATA.txns.filter(t => t.kind === "spending");
+const months = [...new Set(DATA.txns.map(t => t.m))].sort().reverse();
+// Categories ranked by all-time spending, so each keeps its color everywhere.
+const catTotals = sumBy(spend, t => t.cat, t => -t.amt);
+const cats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
+const color = c => { const i = cats.indexOf(c); return i >= 0 && i < PALETTE.length ? PALETTE[i] : "var(--gray)"; };
+
+const state = { view: "compare", months: months.slice(0, 2).reverse(), cat: null, q: "", bMonth: months[0] };
+const goals = { income: DATA.goals.income || 0, groups: (DATA.goals.groups || []).map(g => ({...g, cats: [...g.cats]})) };
+
+function sumBy(rows, key, val) { const o = {}; for (const r of rows) o[key(r)] = (o[key(r)] || 0) + val(r); return o; }
+const fmt0 = n => (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0});
+const fmt2 = n => (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const inMonth = (t, m) => m === ALL || t.m === m;
+const monthName = m => m === ALL ? ALL : new Date(m + "-15").toLocaleDateString(undefined, {month: "short", year: "numeric"});
+const monthOpts = sel => [ALL, ...months].map(x => `<option value="${x}" ${x === sel ? "selected" : ""}>${monthName(x)}</option>`).join("");
+
+function monthStats(m) {
+  const rows = DATA.txns.filter(t => inMonth(t, m));
+  const inc = rows.filter(t => t.kind === "income").reduce((s, t) => s + t.amt, 0);
+  const byCat = sumBy(rows.filter(t => t.kind === "spending"), t => t.cat, t => -t.amt);
+  const spent = Object.values(byCat).reduce((a, b) => a + b, 0);
+  return { inc, spent, byCat };
+}
+
+const tip = document.getElementById("tip");
+function showTip(e, html) { tip.innerHTML = html; tip.style.opacity = 1;
+  tip.style.left = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8) + "px"; tip.style.top = (e.clientY + 14) + "px"; }
+function hideTip() { tip.style.opacity = 0; }
+function tipOn(el, html) { el.addEventListener("mousemove", e => showTip(e, html)); el.addEventListener("mouseleave", hideTip); }
+
+function pickCat(c) { state.cat = state.cat === c ? null : c; renderCompare(); }
+function toggleMonth(m) {
+  const i = state.months.indexOf(m);
+  if (i >= 0 && state.months.length > 1) state.months.splice(i, 1);
+  else if (i < 0) state.months.push(m);
+}
+
+// ---------- trend ----------
+function renderTrend() {
+  const el = document.getElementById("trend-chart");
+  const W = Math.max(el.clientWidth, 300), H = 230, L = 52, B = 22, T = 8;
+  const ms = months.slice(0, W < 600 ? 12 : 24).reverse();  // phones: last 12 months
+  const top = cats.slice(0, 8);
+  const perMonth = ms.map(m => monthStats(m));
+  const max = Math.max(...perMonth.map(p => Math.max(p.spent, p.inc)), 1);
+  const step = niceStep(max / 4), yMax = Math.ceil(max / step) * step;
+  const y = v => T + (H - B - T) * (1 - v / yMax);
+  const bw = (W - L) / ms.length, pad = Math.min(bw * .2, 14);
+  const every = Math.ceil(38 / bw);  // label every nth month when bars are narrow (newest always labeled)
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending by month"><g class="axis">`;
+  for (let v = 0; v <= yMax; v += step) s += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${fmt0(v)}</text>`;
+  s += `</g>`;
+  ms.forEach((m, i) => {
+    const x = L + i * bw + pad, w = bw - pad * 2, p = perMonth[i];
+    const sel = state.months.includes(m);
+    if (sel) s += `<rect x="${L + i * bw + 2}" y="${T - 4}" width="${bw - 4}" height="${H - T}" rx="6" fill="var(--hover)"/>`;
+    s += `<rect class="hit" x="${L + i * bw}" y="0" width="${bw}" height="${H}" fill="transparent" data-m="${m}"/>`;
+    let acc = 0;
+    const positive = Object.values(p.byCat).filter(v => v > 0).reduce((a, b) => a + b, 0);
+    const parts = top.map(c => [c, Math.max(p.byCat[c] || 0, 0)]);
+    parts.push(["Everything else", positive - parts.reduce((a, q) => a + q[1], 0)]);
+    for (const [c, v] of parts) {
+      if (v <= 0) continue;
+      const y0 = y(acc + v); const h = y(acc) - y0; acc += v;
+      const fill = c === "Everything else" ? "var(--gray)" : color(c);
+      const op = state.cat && state.cat !== c ? .2 : 1;
+      s += `<rect class="seg" x="${x}" y="${y0}" width="${w}" height="${Math.max(h, 0)}" fill="${fill}" opacity="${op}" data-m="${m}" data-c="${esc(c)}" data-v="${v}" data-t="${positive}"/>`;
+    }
+    s += `<line x1="${x - 2}" x2="${x + w + 2}" y1="${y(p.inc)}" y2="${y(p.inc)}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" pointer-events="none"/>`;
+    if ((ms.length - 1 - i) % every === 0) s += `<text class="axis" x="${Math.min(x + w / 2, W - 16)}" y="${H - 6}" text-anchor="middle" style="fill:${sel ? "var(--ink)" : "var(--muted)"};font-weight:${sel ? 600 : 400}" pointer-events="none">${m.slice(2).replace("-", "/")}</text>`;
+  });
+  el.innerHTML = s + `</svg>`;
+  el.querySelectorAll(".seg, .hit").forEach(r => {
+    r.addEventListener("click", () => {
+      const c = r.dataset.c;
+      if (c && c !== "Everything else") {
+        // Picking a segment adds its month (never removes it) and selects the category.
+        if (!state.months.includes(r.dataset.m)) state.months.push(r.dataset.m);
+        state.cat = c;
+      } else toggleMonth(r.dataset.m);
+      renderCompare();
+    });
+    r.addEventListener("mousemove", e => {
+      const p = perMonth[ms.indexOf(r.dataset.m)];
+      const head = `<b>${monthName(r.dataset.m)}</b> · spent ${fmt0(p.spent)} · income ${fmt0(p.inc)}`;
+      showTip(e, r.dataset.c ? `${head}<br>${esc(r.dataset.c)}: ${fmt0(+r.dataset.v)} (${Math.round(100 * r.dataset.v / r.dataset.t)}%)` : head);
+    });
+    r.addEventListener("mouseleave", hideTip);
+  });
+  document.getElementById("trend-legend").innerHTML =
+    top.map(c => `<span><i style="background:${color(c)}"></i>${esc(c)}</span>`).join("") +
+    `<span><i style="background:var(--gray)"></i>Everything else</span><span><i style="background:var(--ink);height:3px;vertical-align:3px"></i>Income</span>`;
+}
+function niceStep(x) { const p = 10 ** Math.floor(Math.log10(x)); return [1, 2, 2.5, 5, 10].map(k => k * p).find(k => k >= x); }
+
+// ---------- comparison table ----------
+function renderTable() {
+  const ms = state.months, stats = ms.map(monthStats);
+  // One row per category, ordered by its total across the months being compared.
+  const tot = {};
+  stats.forEach(s => Object.entries(s.byCat).forEach(([c, v]) => tot[c] = (tot[c] || 0) + v));
+  const rows = Object.keys(tot).filter(c => stats.some(s => Math.abs(s.byCat[c] || 0) >= .005)).sort((a, b) => tot[b] - tot[a]);
+  const spare = months.find(m => !ms.includes(m));
+  let h = `<thead><tr><th>Category</th>` + ms.map((m, i) => `<th><div class="mhead"><select data-i="${i}" aria-label="Month">${monthOpts(m)}</select>
+      ${ms.length > 1 ? `<button class="x" data-rm="${i}" title="Remove this month" aria-label="Remove ${monthName(m)}">×</button>` : ""}</div></th>`).join("")
+    + `<th style="width:1%"><button class="btn" id="add-month" ${spare ? "" : "disabled"}>+ Add month</button></th></tr></thead><tbody>`;
+  h += `<tr><td></td>` + stats.map(s => `<td class="donut">${donut(s.byCat)}</td>`).join("") + `<td></td></tr>`;
+  h += `<tr class="kpi"><td>Income</td>` + stats.map(s => `<td>${fmt0(s.inc)}</td>`).join("") + `<td></td></tr>`;
+  h += `<tr class="kpi"><td>Spent</td>` + stats.map(s => `<td>${fmt0(s.spent)}</td>`).join("") + `<td></td></tr>`;
+  h += `<tr class="kpi"><td>Saved</td>` + stats.map(s => { const n = s.inc - s.spent;
+      return `<td class="${n >= 0 ? "good" : "bad"}">${n >= 0 ? "" : "Overspent "}${fmt0(Math.abs(n))}</td>`; }).join("") + `<td></td></tr>`;
+  h += `<tr class="gap"><td></td>${ms.map(() => "<td></td>").join("")}<td></td></tr>`;
+  for (const c of rows) {
+    h += `<tr class="cat ${state.cat === c ? "sel" : ""}" data-c="${esc(c)}"><td><span class="row"><span class="dot" style="background:${color(c)}"></span>${esc(c)}</span></td>`;
+    h += stats.map(s => {
+      const v = s.byCat[c] || 0;
+      if (Math.abs(v) < .005) return `<td class="m"><span class="none">—</span></td>`;
+      const pct = s.spent > 0 ? 100 * v / s.spent : 0;
+      return `<td class="m">${fmt0(v)} <span class="pct">${Math.round(pct)}%</span><div class="bar"><i style="width:${Math.max(Math.min(pct, 100), 0)}%;background:${color(c)}"></i></div></td>`;
+    }).join("") + `<td></td></tr>`;
+  }
+  const el = document.getElementById("cmp");
+  el.innerHTML = h + `</tbody>`;
+  el.querySelectorAll("select[data-i]").forEach(s => s.addEventListener("change", () => { state.months[+s.dataset.i] = s.value; renderCompare(); }));
+  el.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => { state.months.splice(+b.dataset.rm, 1); renderCompare(); }));
+  el.querySelector("#add-month").addEventListener("click", () => { if (spare) { state.months.push(spare); renderCompare(); } });
+  el.querySelectorAll("tr.cat").forEach(r => r.addEventListener("click", () => pickCat(r.dataset.c)));
+  el.querySelectorAll("path[data-c]").forEach(p => {
+    p.addEventListener("click", () => pickCat(p.dataset.c));
+    tipOn(p, `<b>${esc(p.dataset.c)}</b> · ${fmt0(+p.dataset.v)} (${p.dataset.p}%)`);
+  });
+}
+
+function donut(byCat) {
+  const list = Object.entries(byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const total = list.reduce((s, [, v]) => s + v, 0);
+  if (!total) return "";
+  const R = 46, r = 28, C = 48;
+  let a = -Math.PI / 2, s = `<svg viewBox="0 0 96 96" role="img" aria-label="Share of spending">`;
+  for (const [c, v] of list) {
+    const da = 2 * Math.PI * v / total, b = a + Math.min(da, 2 * Math.PI - 1e-4), big = da > Math.PI ? 1 : 0;
+    const p = (rad, ang) => `${(C + rad * Math.cos(ang)).toFixed(2)} ${(C + rad * Math.sin(ang)).toFixed(2)}`;
+    s += `<path d="M ${p(R, a)} A ${R} ${R} 0 ${big} 1 ${p(R, b)} L ${p(r, b)} A ${r} ${r} 0 ${big} 0 ${p(r, a)} Z" style="cursor:pointer"
+      fill="${color(c)}" opacity="${state.cat && state.cat !== c ? .2 : 1}" data-c="${esc(c)}" data-v="${v}" data-p="${Math.round(100 * v / total)}"/>`;
+    a += da;
+  }
+  const sel = state.cat && list.find(([c]) => c === state.cat);
+  if (sel) s += `<text x="48" y="53" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">${Math.round(100 * sel[1] / total)}%</text>`;
+  return s + `</svg>`;
+}
+
+// ---------- transaction lists ----------
+function renderLists() {
+  const c = state.cat, q = state.q.toLowerCase();
+  document.getElementById("detail-title").textContent = c ? `${c} transactions` : "All spending transactions";
+  document.getElementById("detail-dot").style.background = c ? color(c) : "transparent";
+  document.getElementById("clear").hidden = !c;
+  document.getElementById("lists").innerHTML = state.months.map(m => {
+    const rows = spend.filter(t => inMonth(t, m) && (!c || t.cat === c) &&
+      (!q || `${t.desc} ${t.note} ${t.cat}`.toLowerCase().includes(q))).sort((a, b) => a.amt - b.amt);
+    const total = rows.reduce((s, t) => s - t.amt, 0);
+    let h = `<div><div class="row between" style="margin:6px 0"><b>${monthName(m)}</b><span class="muted">${rows.length} · <b style="color:var(--ink)">${fmt2(total)}</b></span></div>`;
+    if (!rows.length) return h + `<div class="empty">Nothing here.</div></div>`;
+    h += `<table class="tx"><tbody>`;
+    for (const t of rows.slice(0, 300)) {
+      const v = -t.amt;
+      h += `<tr><td class="date">${m === ALL ? t.d.slice(2) : t.d.slice(5)}</td><td>${esc(t.desc)}${c ? "" : ` <span class="tag">· ${esc(t.cat)}</span>`}
+        ${t.note ? `<div class="note">${esc(t.note)}</div>` : ""}</td><td class="amt ${v < 0 ? "refund" : ""}">${fmt2(v)}</td></tr>`;
+    }
+    if (rows.length > 300) h += `<tr><td colspan="3" class="empty">…and ${rows.length - 300} more. Narrow it with the filter.</td></tr>`;
+    return h + `</tbody></table></div>`;
+  }).join("");
+}
+
+function renderCompare() {
+  // Columns always run oldest → newest ("All time" sorts last), with no repeats.
+  state.months = [...new Set(state.months)].sort();
+  renderTrend(); renderTable(); renderLists();
+}
+
+// ---------- budget ----------
+// Goals are groups of categories, each a % of estimated monthly income.
+// Cash savings is whatever the groups leave unassigned.
+const expanded = new Set();
+const gColor = i => PALETTE[i % PALETTE.length];
+function groupIndexOf(cat) {
+  const i = goals.groups.findIndex(g => g.cats.includes(cat));
+  return i >= 0 ? i : goals.groups.findIndex(g => g.cats.includes("*"));
+}
+function moveCat(cat, to) {
+  goals.groups.forEach(g => g.cats = g.cats.filter(c => c !== cat));
+  if (to !== "") goals.groups[+to].cats.push(cat);
+  changed();
+}
+
+function renderBudget() {
+  const m = state.bMonth, st = monthStats(m);
+  const nMonths = m === ALL ? months.length : 1;  // All time: goals x number of months
+  const inc = goals.income * nMonths;
+  document.getElementById("b-month").innerHTML = monthOpts(m);
+  const incEl = document.getElementById("b-income");
+  if (document.activeElement !== incEl) incEl.value = goals.income || "";
+  document.getElementById("b-actual-income").innerHTML =
+    `Actual income ${m === ALL ? "all time" : "in " + monthName(m)}: <b style="color:var(--ink)">${fmt0(st.inc)}</b>` +
+    (m !== ALL && st.inc > 0 ? ` <button class="btn" id="use-actual" style="margin-left:6px">Use as estimate</button>` : "");
+  const useBtn = document.getElementById("use-actual");
+  if (useBtn) useBtn.addEventListener("click", () => { goals.income = Math.round(st.inc); changed(); });
+
+  // Spending per group (and per category inside it) for the chosen month.
+  const groups = goals.groups.map((g, i) => ({ g, i, spent: 0, cats: {} }));
+  const loose = { spent: 0, cats: {} };
+  for (const g of groups) for (const c of g.g.cats) if (c !== "*") g.cats[c] = 0;
+  for (const [c, v] of Object.entries(st.byCat)) {
+    const gi = groupIndexOf(c), into = gi >= 0 ? groups[gi] : loose;
+    into.cats[c] = (into.cats[c] || 0) + v; into.spent += v;
+  }
+  const allocated = goals.groups.reduce((s, g) => s + g.pct, 0);
+  const savePct = Math.max(100 - allocated, 0);
+  const saveGoal = inc * savePct / 100, saved = inc - st.spent;
+  const pctOf = v => inc > 0 ? `${Math.round(100 * v / inc)}%` : "";
+
+  // Plan vs actual: how income was meant to be split, next to where it went.
+  const scale = Math.max(inc, st.spent, 1);
+  const seg = (v, fill, label, cls = "") => v > 0 ? `<i class="${cls}" style="width:${100 * v / scale}%;${fill ? `background:${fill}` : ""}" data-tip="${esc(label)}: ${fmt0(v)}${inc > 0 ? " (" + Math.round(100 * v / inc) + "% of income)" : ""}"></i>` : "";
+  const plan = groups.map(r => seg(inc * r.g.pct / 100, gColor(r.i), r.g.name)).join("") + seg(saveGoal, "", "Cash savings", "save");
+  const actual = groups.map(r => seg(Math.max(r.spent, 0), gColor(r.i), r.g.name)).join("")
+    + seg(Math.max(loose.spent, 0), "var(--gray)", "Not in any group") + seg(saved, "", "Saved", "save");
+  document.getElementById("b-stack").innerHTML = inc > 0 ?
+    `<span class="small muted">Plan</span><div class="stackbar">${plan}</div>
+     <span class="small muted">Actual</span><div class="stackbar">${actual}</div>
+     <span></span><div class="small muted">Full bar = ${fmt0(scale)}. Hatched = cash savings. Hover a segment for details.
+       ${st.spent > inc ? `<span class="bad">Spent ${fmt0(st.spent - inc)} more than estimated income.</span>` : ""}</div>` :
+    `<span></span><div class="muted small">Enter your estimated monthly income to see goals in dollars.</div>`;
+  document.querySelectorAll("#b-stack [data-tip]").forEach(el => tipOn(el, el.dataset.tip));
+
+  const groupOpts = cur => goals.groups.map((g, i) => `<option value="${i}" ${i === cur ? "selected" : ""}>${esc(g.name)}</option>`).join("")
+    + `<option value="" ${cur < 0 ? "selected" : ""}>(no group)</option>`;
+  const catRows = (cats, gi) => Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) =>
+    `<tr class="sub"><td>${esc(c)}<div class="mob">${fmt0(v)} · ${pctOf(v)} of income</div></td><td></td><td></td><td>${fmt0(v)}</td><td>${pctOf(v)}</td><td></td>
+      <td><select data-move="${esc(c)}" aria-label="Move ${esc(c)} to group">${groupOpts(gi)}</select></td><td></td></tr>`).join("");
+  const bar = (spent, goal, good) => { const sc = Math.max(goal, spent, 1);
+    return `<div class="track"><div class="fill" style="width:${100 * Math.max(spent, 0) / sc}%;background:${good ? "var(--good)" : "var(--bad)"}"></div>
+      <div class="mark" style="left:calc(${100 * goal / sc}% - 1px)"></div></div>`; };
+
+  let h = `<thead><tr><th>Group</th><th>Goal %</th><th>Goal $</th><th>Spent</th><th>Actual %</th><th>Progress</th><th>Left / over</th><th></th></tr></thead><tbody>`;
+  for (const r of groups) {
+    const goal = inc * r.g.pct / 100, left = goal - r.spent, open = expanded.has(r.g.name);
+    const k = r.g.cats.filter(c => c !== "*").length;
+    const n = `${k} ${k === 1 ? "category" : "categories"}${r.g.cats.includes("*") ? " + everything else" : ""}`;
+    h += `<tr><td><span class="row gname" data-toggle="${esc(r.g.name)}"><button class="caret" aria-label="Show categories">${open ? "▾" : "▸"}</button>
+        <span class="dot" style="background:${gColor(r.i)}"></span>${esc(r.g.name)} <span class="small muted">${n}</span></span>
+        <div class="mob">${bar(r.spent, goal, left >= 0)}${fmt0(r.spent)} of ${fmt0(goal)} · ${pctOf(r.spent)} of income</div></td>
+      <td><input type="number" min="0" max="100" step="any" value="${r.g.pct}" data-pct="${r.i}" aria-label="Goal % for ${esc(r.g.name)}"></td>
+      <td>${fmt0(goal)}</td><td>${fmt0(r.spent)}</td><td>${pctOf(r.spent)}</td>
+      <td class="prog">${bar(r.spent, goal, left >= 0)}</td>
+      <td class="${left >= 0 ? "good" : "bad"}">${left >= 0 ? fmt0(left) + " left" : fmt0(-left) + " over"}</td>
+      <td><button class="x" data-del="${r.i}" title="Remove group" aria-label="Remove ${esc(r.g.name)}">×</button></td></tr>`;
+    if (open) h += catRows(r.cats, r.i);
+  }
+  if (Object.keys(loose.cats).length) {
+    const open = expanded.has("");
+    h += `<tr><td><span class="row gname" data-toggle=""><button class="caret">${open ? "▾" : "▸"}</button><span class="dot" style="background:var(--gray)"></span>Not in any group</span><div class="mob">${fmt0(loose.spent)} spent</div></td>
+      <td></td><td></td><td>${fmt0(loose.spent)}</td><td>${pctOf(loose.spent)}</td><td></td><td class="small muted">move these into a group</td><td></td></tr>`;
+    if (open) h += catRows(loose.cats, -1);
+  }
+  h += `<tr class="savings"><td><span class="row"><span class="caret"></span><span class="dot save" style="background:var(--good)"></span><b>Cash savings</b> <span class="small muted">what's left</span></span>
+    ${inc > 0 ? `<div class="mob">${bar(saved, saveGoal, saved >= saveGoal)}${fmt0(saved)} saved of ${fmt0(saveGoal)} · ${pctOf(saved)} of income</div>` : ""}</td>
+    <td class="small muted">${Math.round(savePct * 10) / 10}%</td><td>${fmt0(saveGoal)}</td><td>${inc > 0 ? fmt0(saved) + " saved" : ""}</td><td>${pctOf(saved)}</td>
+    <td class="prog">${inc > 0 ? bar(saved, saveGoal, saved >= saveGoal) : ""}</td>
+    <td class="${saved >= saveGoal ? "good" : "bad"}">${inc > 0 ? (saved >= saveGoal ? fmt0(saved - saveGoal) + " ahead" : fmt0(saveGoal - saved) + " short") : ""}</td><td></td></tr>`;
+  h += `<tr class="total"><td>Total<div class="mob">${fmt0(st.spent)} spent of ${fmt0(inc)} · ${pctOf(st.spent)}</div></td><td class="small muted">${Math.round(allocated * 10) / 10}% + ${Math.round(savePct * 10) / 10}%</td><td>${fmt0(inc)}</td><td>${fmt0(st.spent)}</td><td>${pctOf(st.spent)}</td><td></td>
+    <td class="small muted" style="white-space:normal">${allocated > 100 ? `<span class="bad">Groups add up to more than 100%.</span>` : ""}</td><td></td></tr>`;
+  h += `<tr><td colspan="8"><div class="row wrap"><input id="new-name" placeholder="New group name" aria-label="New group name" style="width:180px">
+      <input type="number" id="new-pct" min="0" max="100" step="any" placeholder="%" aria-label="Goal %">
+      <button class="btn" id="add-group">Add group</button><span class="small muted">Then open a group (▸) and move categories into it.</span></div></td></tr>`;
+  const el = document.getElementById("b-table");
+  el.innerHTML = h + `</tbody>`;
+
+  el.querySelectorAll("[data-toggle]").forEach(t => t.addEventListener("click", () => {
+    const k = t.dataset.toggle; expanded.has(k) ? expanded.delete(k) : expanded.add(k); renderBudget();
+  }));
+  el.querySelectorAll("[data-pct]").forEach(i => i.addEventListener("change", () => {
+    goals.groups[+i.dataset.pct].pct = Math.min(Math.max(+i.value || 0, 0), 100); changed();
+  }));
+  el.querySelectorAll("[data-move]").forEach(sel => sel.addEventListener("change", () => moveCat(sel.dataset.move, sel.value)));
+  el.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => {
+    const g = goals.groups[+b.dataset.del];
+    if (confirm(`Remove the "${g.name}" group? Its categories become ungrouped.`)) { goals.groups.splice(+b.dataset.del, 1); changed(); }
+  }));
+  el.querySelector("#add-group").addEventListener("click", () => {
+    const name = el.querySelector("#new-name").value.trim().replace(/,/g, " "), pct = +el.querySelector("#new-pct").value || 0;
+    if (!name || goals.groups.some(g => g.name === name)) return el.querySelector("#new-name").focus();
+    goals.groups.push({ name, pct, cats: [] }); expanded.add(name); changed();
+  });
+}
+
+let saveTimer;
+function changed() {
+  renderBudget();
+  const status = document.getElementById("save-status");
+  const done = ok => { status.textContent = ok ? "Saved to your Sheet" : "Couldn't save. Reload and try again."; status.className = ok ? "muted" : "bad"; };
+  // Inside the Apps Script web app, save through the Sheet; locally, through tracker.py dashboard.
+  const viaSheet = DATA.remote === "apps_script" && window.google && google.script && google.script.run;
+  if (!viaSheet && !DATA.token) { status.textContent = "Static page: changes aren't saved. Run tracker.py dashboard to edit goals."; return; }
+  status.textContent = "Saving…"; status.className = "muted";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    if (viaSheet) return google.script.run.withSuccessHandler(() => done(true)).withFailureHandler(() => done(false)).saveGoals(goals);
+    try {
+      const r = await fetch("/api/goals", { method: "POST", headers: { "Content-Type": "application/json", "X-Token": DATA.token }, body: JSON.stringify(goals) });
+      done(r.ok);
+    } catch (e) { status.textContent = "Couldn't save: is tracker.py dashboard still running?"; status.className = "bad"; }
+  }, 500);
+}
+
+// ---------- wiring ----------
+function setView(v) {
+  state.view = v;
+  document.querySelectorAll(".tabs button").forEach(b => { b.classList.toggle("on", b.dataset.view === v); b.setAttribute("aria-selected", b.dataset.view === v); });
+  document.getElementById("view-compare").hidden = v !== "compare";
+  document.getElementById("view-budget").hidden = v !== "budget";
+  try { localStorage.setItem("view", v); } catch (e) {}
+  v === "compare" ? renderCompare() : renderBudget();
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+document.getElementById("built").textContent = `${spend.length.toLocaleString()} spending transactions · loaded ${DATA.built}` +
+  (DATA.token || DATA.remote ? " · reload for fresh data" : " · rerun tracker.py dashboard to refresh");
+document.getElementById("clear").addEventListener("click", () => pickCat(state.cat));
+document.getElementById("q").addEventListener("input", e => { state.q = e.target.value; renderLists(); });
+document.getElementById("b-month").addEventListener("change", e => { state.bMonth = e.target.value; renderBudget(); });
+document.getElementById("b-income").addEventListener("change", e => { goals.income = Math.max(+e.target.value || 0, 0); changed(); });
+document.getElementById("theme").addEventListener("click", () => {
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const cur = document.documentElement.dataset.theme || (dark ? "dark" : "light");
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+  try { localStorage.setItem("theme", document.documentElement.dataset.theme); } catch (e) {}
+  setView(state.view);
+});
+try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+let startView = "compare";
+try { startView = localStorage.getItem("view") || "compare"; } catch (e) {}
+setView(startView === "budget" ? "budget" : "compare");
+// Redraw the bars whenever their box changes width (first layout, window resizes).
+let lastW = 0;
+new ResizeObserver(([e]) => {
+  const w = Math.round(e.contentRect.width);
+  if (w && w !== lastW && state.view === "compare") { lastW = w; renderTrend(); }
+}).observe(document.getElementById("trend-chart"));
+</script>
+</body>
+</html>

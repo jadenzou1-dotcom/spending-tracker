@@ -1,7 +1,7 @@
 # Scheduled Plaid -> Google Sheet sync. Copy this to .github/workflows/sync.yml
 # in your own PRIVATE repo (Actions logs on a public repo are public), and add
 # the five secrets below under Settings -> Secrets and variables -> Actions.
-# See README.md, "Daily sync with Plaid".
+# See docs/SETUP.md, step 5.
 name: Sync transactions
 
 on:

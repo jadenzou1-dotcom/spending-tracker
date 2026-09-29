@@ -39,7 +39,7 @@ def _credentials() -> dict:
         if not out[key]:
             missing.append(env)
     if missing:
-        raise SystemExit(f"Missing {', '.join(missing)} (see README, Daily sync with Plaid).")
+        raise SystemExit(f"Missing {', '.join(missing)} (see docs/SETUP.md, step 5).")
     return out
 
 

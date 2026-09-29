@@ -73,6 +73,9 @@ T-MOBILE,Utilities & Phone
 COMCAST,Utilities & Phone
 XFINITY,Utilities & Phone
 WIFI,Utilities & Phone
+EVERSOURCE,Utilities & Phone
+NATIONAL GRID,Utilities & Phone
+CON ED,Utilities & Phone
 #
 # --- Groceries ---
 TRADER JOE,Groceries
@@ -120,6 +123,8 @@ EYE CARE,Health & Fitness
 # --- Personal care ---
 SALON,Personal Care
 BARBER,Personal Care
+GREAT CLIPS,Personal Care
+SUPERCUTS,Personal Care
 #
 # --- Payments to people ---
 VENMO,Payments to People

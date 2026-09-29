@@ -2,8 +2,8 @@
  * Spending dashboard as a private web app, served from the Google Sheet itself.
  *
  * Paste into the Sheet's Apps Script project (Extensions > Apps Script) and deploy
- * as a web app that runs as the user accessing it (see README, "Dashboard on your
- * phone"). It runs with the visitor's own Google permissions, so it only works for
+ * as a web app that runs as the user accessing it (see docs/SETUP.md, step 7, and
+ * docs/PHONE-DASHBOARD.md). It runs with the visitor's own Google permissions, so it only works for
  * accounts the Sheet is shared with; anyone else gets a message and no data.
  * Each visit reads Transactions and Goals live; Budget edits are saved back to the
  * Goals tab (which needs edit access to the Sheet). Index.html is spending_tracker/dashboard.html,

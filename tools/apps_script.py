@@ -1,5 +1,5 @@
 """Copy the Apps Script web app's files to the clipboard, one at a time, for pasting
-into the Sheet's Apps Script editor (see README, "Dashboard on your phone").
+into the Sheet's Apps Script editor (see docs/SETUP.md, step 7).
 
   python tools/apps_script.py code       Code.gs
   python tools/apps_script.py index      Index.html (built from spending_tracker/dashboard.html)

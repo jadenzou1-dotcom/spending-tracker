@@ -1,11 +1,12 @@
 # spending-tracker
 
-Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Charts / Rules / Goals tabs, plus a hidden Sync tab holding Plaid's cursor). Run with `.venv/bin/python tracker.py ...`. User-facing docs are in README.md.
+Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Charts / Rules / Goals tabs, plus a hidden Sync tab holding Plaid's cursor). Run with `.venv/bin/python tracker.py ...`. User-facing docs: README.md (overview + screenshots) and docs/ (SETUP.md, FEATURES.md, PHONE-DASHBOARD.md, HISTORY.md), each page starting with the same link bar.
 
 ## Keeping things in sync (always)
 - Every change to code, rules.default.csv or docs gets committed **and pushed** to GitHub (`origin main`) in the same turn, so the local folder and the GitHub repo never drift. "Commit" means commit and push.
 - Commits are authored by the user's own git identity (Jaden Zou); end each message with the `Co-Authored-By: Claude ...` trailer.
-- When behavior, commands or layout change, update README.md and this file before committing. Don't leave old wording behind.
+- When behavior, commands or layout change, update the docs (README.md, docs/*.md) and this file before committing. Don't leave old wording behind. Notable decisions and dead ends go in docs/HISTORY.md (timeline + "What didn't work").
+- When the dashboard or Sheet layout changes visibly, rerun `.venv/bin/python tools/make_demo.py --shots` so `examples/demo/`, `docs/demo/` and `docs/images/` match.
 - Before committing, run `git status` and make sure nothing personal is staged (see Privacy).
 
 ## Dashboard (where analysis lives)
@@ -48,4 +49,4 @@ Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Chart
 - Writes overwrite Transactions in place and trim leftovers afterwards (never clear first), and the Sheets client retries 429 quota errors. A failed run must never leave the ledger empty.
 
 ## Privacy
-Gitignored and must stay that way: `config.json`, `service_account.json`, `rules.local.csv`, `data/`, all CSVs except `rules.default.csv` and `examples/*.csv`. The examples are fake data; never put real transactions there.
+Gitignored and must stay that way: `config.json`, `service_account.json`, `rules.local.csv`, `data/`, all CSVs except `rules.default.csv`, `examples/*.csv` and `examples/demo/*.csv`. `examples/demo/*.csv` and `docs/demo/` are also committed. All examples and demo files are fake data from `tools/make_demo.py`; never put real transactions, names or accounts there.

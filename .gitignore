@@ -6,6 +6,7 @@ statements/
 *.csv
 !rules.default.csv
 !examples/*.csv
+!examples/demo/*.csv
 *service_account*.json
 .venv/
 __pycache__/
