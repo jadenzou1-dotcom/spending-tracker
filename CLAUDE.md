@@ -39,6 +39,9 @@ Chase CSV exports or Plaid sync → Google Sheet (Transactions / Summary / Chart
 ## Splitting a row (e.g. roommate Zelle covering rent + utilities)
 `tracker.py search "zelle"` to get the ID, then `tracker.py split <ID> "Utilities & Phone=40" Rent`. One part may omit its amount and takes the remainder. The original gets Exclude = "split", and the pieces keep the original's sign, so money received in "Rent" reduces rent spending. To ignore part of a payment, give that part the category Transfer.
 
+### Shared rent bill (monthly)
+When the user sends a screenshot of the landlord bill's line items, they pay it in full and the roommate pays them back. Split the **bill row** into the user's own parts (their rent share, their half of any 50/50 utilities as Utilities & Phone) plus the remainder as Transfer, and set the roommate's payment row to Transfer, so the ledger only shows the user's real cost and nothing is counted twice. Then check that itemized total = user's side + roommate's side and flag any shortfall or unexplained difference. The user's actual shares and the roommate's name are personal: they live in Claude's memory, never in committed files.
+
 ## Conventions
 - Amounts: negative = money out. Summary shows spending as positive dollars.
 - Income: any category ending in " Income" (Work / Other built in; personal income sources come from Rules-tab rules and stay out of committed files). Money received for a shared expense goes in that expense's category, not income.
