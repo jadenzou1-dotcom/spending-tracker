@@ -5,7 +5,7 @@
 Two links, both filled with **fake data** for a made-up person and open to anyone (no sign-in needed):
 
 - **[Demo spreadsheet](https://docs.google.com/spreadsheets/d/1ewAz3ph69PqMhJkR85uOpalluf4-KS3Aw70xpjA5lgA/edit)**: the real Transactions, Summary, Charts, Rules and Goals tabs, written by the same code a real import uses. View only.
-- **Demo dashboard**: the Apps Script web app attached to that spreadsheet, the same one used on the phone. Budget edits work on the page but are never saved. *(Link coming once it's deployed.)*
+- **[Demo dashboard](https://script.google.com/macros/s/AKfycbwrYPGkekMMtUNpcHPBBkni_EA8FUaZo7DRqDQ6prPm6lVQR1R1JaP15f2K1EFIWKM/exec)**: the Apps Script web app attached to that spreadsheet, the same one used on the phone. Budget edits work on the page but are never saved.
 
 ## How the demo is built
 

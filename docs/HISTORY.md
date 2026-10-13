@@ -22,7 +22,9 @@ The project went from a CSV importer to an automated tracker with a phone dashbo
 | Sep 28 | Dashboard compares any number of months; **Budget** goals saved to a Goals tab | `6364c26` `4256056` |
 | Sep 28 | Dashboard as an **Apps Script web app** for phones (owner-only at first) | `c3cbebb` `4461d2c` |
 | Sep 28 | Web app **runs as the visitor**, so any account the Sheet is shared with can open it | `6413120` |
-| Sep 28 | Docs split into these pages; fake demo data and screenshots | this change |
+| Sep 28 | Docs split into these pages; fake demo data and screenshots | `d69c286` |
+| Sep 28 | Public demo Sheet filled with fake data; read-only demo mode for the Apps Script | `6a292bc` |
+| Oct 12 | **Demo dashboard deployed**: a public web app on the demo Sheet, open without signing in | this change |
 
 ## What didn't work
 
