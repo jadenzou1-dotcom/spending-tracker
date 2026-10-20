@@ -322,7 +322,7 @@ def sheet_html(txns, summary, n_income, rules, goals) -> str:
     tabs = "".join(f'<a href="#{k}" data-t="{k}">{n}</a>' for k, (n, _) in pages.items())
     tabs = tabs.replace('<a href="#rules"', '<a href="dashboard.html" title="Replaced by the dashboard">Charts</a><a href="#rules"')
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>Spending Tracker (demo)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>DEMO · Spending Tracker</title>
 <style>{SHEET_CSS}</style></head><body>
 <div class="top"><div class="logo"></div><div><div class="title">Spending Tracker (demo)</div>
 <div class="menu"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Data</span><span>Tools</span><span>Extensions</span><span>Help</span></div></div>
@@ -410,6 +410,7 @@ def fill_sheet(sheet_id: str, txns) -> None:
     if sheet_id == cfg.get("sheet_id"):
         raise SystemExit("That's the Sheet in config.json, your real one. Give the demo Sheet's ID.")
     store = SheetStore({"sheet_id": sheet_id, "credentials": cfg.get("credentials", "service_account.json")})
+    store.ss.update_title("DEMO · Spending Tracker")  # "DEMO" first so even a narrow browser tab shows it
     rules = store._tab(RULES, rows=50, cols=2)
     rules.clear()
     rules.update(values=[["pattern", "category"], *map(list, PERSONAL_RULES)], range_name="A1", value_input_option="RAW")
@@ -426,8 +427,9 @@ def main():
     summary, n_income = summary_rows(txns)
     write_tables(txns, summary)
     DOCS.mkdir(parents=True, exist_ok=True)
-    # Marked as a demo so Budget edits say they aren't saved.
+    # Marked as a demo so Budget edits say they aren't saved, and the tab title says so.
     page = re.sub(r'"built":"[^"]*"', '"built":"2026-09-28 08:00","demo":true', dashboard.page(txns, GOALS), count=1)
+    page = page.replace("<title>Spending Dashboard</title>", "<title>DEMO · Spending Dashboard</title>", 1)
     (DOCS / "dashboard.html").write_text(page, encoding="utf-8")
     (DOCS / "sheet.html").write_text(sheet_html(txns, summary, n_income, PERSONAL_RULES, GOALS), encoding="utf-8")
     print(f"{len(txns)} ledger rows ({stats['cancelled_pairs']} cancelled pair) -> examples/demo/, docs/demo/")

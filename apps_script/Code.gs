@@ -29,7 +29,7 @@ function doGet() {
   // "</" inside a <script> would end it early.
   page.data = JSON.stringify(data).replace(/<\//g, '<\\/');
   return page.evaluate()
-    .setTitle('Spending')
+    .setTitle(DEMO ? 'DEMO · Spending' : 'Spending')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 

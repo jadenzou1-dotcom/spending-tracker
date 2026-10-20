@@ -29,5 +29,6 @@ Two links, both filled with **fake data** for a made-up person and open to anyon
 | Who can open it | anyone signed in, but data only loads for accounts the Sheet is shared with | anyone, signed in or not |
 | Budget edits | saved to the Goals tab | never saved (`saveGoals` refuses when `DEMO` is true) |
 | Scope | `spreadsheets.currentonly` | the same: only the demo spreadsheet |
+| Browser tab title | Spending | DEMO · Spending (the Sheet and static page start with DEMO too), so a forgotten demo tab is easy to spot |
 
 Running as the owner for anyone is exactly the setup [Phone dashboard](PHONE-DASHBOARD.md) warns against for real data. It's fine here because the spreadsheet holds nothing but fake data, the script can't reach any other file, and it never writes.
