@@ -42,6 +42,7 @@ button { font: inherit; color: var(--ink); cursor: pointer; }
 .tabs { display: inline-flex; background: var(--track); border-radius: 10px; padding: 3px; }
 .tabs button { border: 0; background: none; padding: 6px 16px; border-radius: 8px; color: var(--muted); font-weight: 500; }
 .tabs button.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+#kind button { padding: 3px 12px; font-size: 13px; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .good { color: var(--good); } .bad { color: var(--bad); }
 .scroll { overflow-x: auto; }
@@ -173,7 +174,9 @@ table.goals { width: 100%; border-collapse: collapse; }
 
     <section class="card">
       <div class="row between wrap" style="gap:12px">
-        <div class="row"><span class="dot" id="detail-dot"></span><h2 id="detail-title"></h2>
+        <div class="row wrap"><span class="dot" id="detail-dot"></span><h2 id="detail-title"></h2>
+          <div class="tabs" id="kind" role="tablist" aria-label="Transaction type">
+            <button data-kind="spending" role="tab">Spending</button><button data-kind="income" role="tab">Income</button></div>
           <button class="btn" id="clear" hidden>Show all categories</button></div>
         <input type="search" id="q" placeholder="Filter transactions…" aria-label="Filter transactions">
       </div>
@@ -211,7 +214,7 @@ const catTotals = sumBy(spend, t => t.cat, t => -t.amt);
 const cats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
 const color = c => { const i = cats.indexOf(c); return i >= 0 && i < PALETTE.length ? PALETTE[i] : "var(--gray)"; };
 
-const state = { view: "compare", months: months.slice(0, 2).reverse(), cat: null, q: "", bMonth: months[0] };
+const state = { view: "compare", months: months.slice(0, 2).reverse(), cat: null, q: "", kind: "spending", bMonth: months[0] };
 const goals = { income: DATA.goals.income || 0, groups: (DATA.goals.groups || []).map(g => ({...g, cats: [...g.cats]})) };
 
 function sumBy(rows, key, val) { const o = {}; for (const r of rows) o[key(r)] = (o[key(r)] || 0) + val(r); return o; }
@@ -236,7 +239,7 @@ function showTip(e, html) { tip.innerHTML = html; tip.style.opacity = 1;
 function hideTip() { tip.style.opacity = 0; }
 function tipOn(el, html) { el.addEventListener("mousemove", e => showTip(e, html)); el.addEventListener("mouseleave", hideTip); }
 
-function pickCat(c) { state.cat = state.cat === c ? null : c; renderCompare(); }
+function pickCat(c) { state.cat = state.cat === c ? null : c; state.kind = "spending"; renderCompare(); }
 function toggleMonth(m) {
   const i = state.months.indexOf(m);
   if (i >= 0 && state.months.length > 1) state.months.splice(i, 1);
@@ -359,21 +362,24 @@ function donut(byCat) {
 
 // ---------- transaction lists ----------
 function renderLists() {
-  const c = state.cat, q = state.q.toLowerCase();
-  document.getElementById("detail-title").textContent = c ? `${c} transactions` : "All spending transactions";
+  // Income mode lists every income row; the category pick only narrows spending.
+  const inc = state.kind === "income", c = inc ? null : state.cat, q = state.q.toLowerCase();
+  document.getElementById("detail-title").textContent = c ? `${c} transactions` : inc ? "All income transactions" : "All spending transactions";
   document.getElementById("detail-dot").style.background = c ? color(c) : "transparent";
   document.getElementById("clear").hidden = !c;
+  document.querySelectorAll("#kind button").forEach(b => { b.classList.toggle("on", b.dataset.kind === state.kind); b.setAttribute("aria-selected", b.dataset.kind === state.kind); });
+  const src = inc ? DATA.txns.filter(t => t.kind === "income") : spend, sign = inc ? 1 : -1;
   document.getElementById("lists").innerHTML = state.months.map(m => {
-    const rows = spend.filter(t => inMonth(t, m) && (!c || t.cat === c) &&
-      (!q || `${t.desc} ${t.note} ${t.cat}`.toLowerCase().includes(q))).sort((a, b) => a.amt - b.amt);
-    const total = rows.reduce((s, t) => s - t.amt, 0);
+    const rows = src.filter(t => inMonth(t, m) && (!c || t.cat === c) &&
+      (!q || `${t.desc} ${t.note} ${t.cat}`.toLowerCase().includes(q))).sort((a, b) => sign * (b.amt - a.amt));
+    const total = rows.reduce((s, t) => s + sign * t.amt, 0);
     let h = `<div><div class="row between" style="margin:6px 0"><b>${monthName(m)}</b><span class="muted">${rows.length} · <b style="color:var(--ink)">${fmt2(total)}</b></span></div>`;
     if (!rows.length) return h + `<div class="empty">Nothing here.</div></div>`;
     h += `<table class="tx"><tbody>`;
     for (const t of rows.slice(0, 300)) {
-      const v = -t.amt;
+      const v = sign * t.amt;
       h += `<tr><td class="date">${m === ALL ? t.d.slice(2) : t.d.slice(5)}</td><td>${esc(t.desc)}${c ? "" : ` <span class="tag">· ${esc(t.cat)}</span>`}
-        ${t.note ? `<div class="note">${esc(t.note)}</div>` : ""}</td><td class="amt ${v < 0 ? "refund" : ""}">${fmt2(v)}</td></tr>`;
+        ${t.note ? `<div class="note">${esc(t.note)}</div>` : ""}</td><td class="amt ${v < 0 ? (inc ? "bad" : "refund") : ""}">${fmt2(v)}</td></tr>`;
     }
     if (rows.length > 300) h += `<tr><td colspan="3" class="empty">…and ${rows.length - 300} more. Narrow it with the filter.</td></tr>`;
     return h + `</tbody></table></div>`;
@@ -525,13 +531,14 @@ function changed() {
 // ---------- wiring ----------
 function setView(v) {
   state.view = v;
-  document.querySelectorAll(".tabs button").forEach(b => { b.classList.toggle("on", b.dataset.view === v); b.setAttribute("aria-selected", b.dataset.view === v); });
+  document.querySelectorAll(".tabs button[data-view]").forEach(b => { b.classList.toggle("on", b.dataset.view === v); b.setAttribute("aria-selected", b.dataset.view === v); });
   document.getElementById("view-compare").hidden = v !== "compare";
   document.getElementById("view-budget").hidden = v !== "budget";
   try { localStorage.setItem("view", v); } catch (e) {}
   v === "compare" ? renderCompare() : renderBudget();
 }
-document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+document.querySelectorAll(".tabs button[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+document.querySelectorAll("#kind button").forEach(b => b.addEventListener("click", () => { state.kind = b.dataset.kind; renderLists(); }));
 document.getElementById("built").textContent = `${spend.length.toLocaleString()} spending transactions · loaded ${DATA.built}` +
   (DATA.token || DATA.remote ? " · reload for fresh data" : " · rerun tracker.py dashboard to refresh");
 document.getElementById("clear").addEventListener("click", () => pickCat(state.cat));

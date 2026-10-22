@@ -56,7 +56,7 @@ One self-contained HTML page (`spending_tracker/dashboard.html`) with no librari
 **Compare**
 - Monthly stacked bars (last 24 months; 12 on a phone) for the top 8 categories plus "Everything else", with an income line. Click a month to add it to the comparison or take it out, or click a segment to pick that category.
 - A table with one column per chosen month (add as many as you like) and one row per category: dollars, % of that month's spending and a bar, plus a donut per month and Income / Spent / Saved rows.
-- Click a category to list its transactions for every chosen month side by side, biggest first, with notes. A filter box searches descriptions, notes and categories.
+- Click a category to list its transactions for every chosen month side by side, biggest first, with notes. A filter box searches descriptions, notes and categories. A Spending / Income toggle switches the list to every income row (paychecks, family money and the like) per month.
 
 **Budget**
 - Pick a month and set your estimated take-home income, or copy that month's actual income with "Use as estimate".
